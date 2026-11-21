@@ -1,0 +1,9 @@
+# CivicEye 360 — Raspberry Pi 5 Edge Server Dependencies
+# Note: On Raspberry Pi OS (Bookworm 64-bit), install system drivers first:
+#   sudo apt install -y hailo-all python3-picamera2
+
+fastapi
+uvicorn[standard]
+opencv-python
+numpy<2
+pyserial
