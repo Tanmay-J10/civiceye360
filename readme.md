@@ -32,3 +32,16 @@ While the 4WD rover demonstrates autonomous closed-loop inspection on footpaths,
 2. Install dependencies on Raspberry Pi OS (Bookworm 64-bit) with `hailo-all` installed:
    ```bash
    pip install -r requirements.txt --break-system-packages
+## Quick Start [Management Hub/Any server (Windows/Linux)]
+1.Launch the edge server:
+export CIVICEYE_API_KEY="civiceye-2026"
+uvicorn server:app --host 0.0.0.0 --port 8000
+
+## Future Expansion Beyond Civil Infrastructure
+Because the Edge AI Pod is modular and hardware-accelerated, expanding into other sectors requires only swapping the compiled .hef neural model—with no hardware redesign:
+
+Medical & Healthcare: Contactless biomedical waste and sharps triage to protect frontline sanitation staff, plus automated hospital corridor spill/obstacle alerts.
+
+Precision Agriculture: Real-time crop blight, pest, and irrigation stress mapping for farms and urban terrace gardens.
+
+Industrial & Facility Safety: Confined-space HVAC duct inspection, electrical cable hazard monitoring, and solar panel micro-defect detection.
