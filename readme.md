@@ -1,3 +1,4 @@
+**[Launch Live 3D Rover Viewer](https://tanmay-j10.github.io/civiceye360/civiceye_dashboard.html)**
 # CivicEye 360 — Modular Edge AI Pod & Autonomous Civic Auditing Rover
 
 **CivicEye 360** is a real-time Edge AI road and streetscape auditing system built for the **Changemakers Challenge**. Powered by a **Raspberry Pi 5**, a **Hailo-8L neural accelerator (13 TOPS)**, and a **Pi Camera Module 3**, it detects urban infrastructure hazards at 30+ FPS, calculates municipal repair remedies and costs (in ₹), geotags every incident via GPS, and streams live video and telemetry to a web command dashboard.
