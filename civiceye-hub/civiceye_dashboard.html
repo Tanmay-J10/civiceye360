@@ -1,0 +1,4300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Civic Eye - Command Hub</title>
+
+  <!-- Leaflet 1.9.4 CSS (graceful interactive canvas fallback if offline) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+
+  <style>
+    /* =========================================================================
+       CIVIC EYE - COMMAND HUB | PITCH-BLACK OLED LINEAR / SHADCN DESIGN SYSTEM
+       ========================================================================= */
+    :root {
+      --bg-oled: #000000;
+      --bg-sidebar: #050507;
+      --bg-surface: #0A0A0D;
+      --bg-surface-2: #111116;
+      --bg-surface-3: #18181F;
+      --hairline: rgba(255, 255, 255, 0.08);
+      --hairline-strong: rgba(255, 255, 255, 0.16);
+      --text-primary: #FFFFFF;
+      --text-secondary: #A1A1AA;
+      --text-muted: #71717A;
+      --neon-blue: #00D2FF;
+      --neon-pink: #FF2A85;
+      --emerald: #34D399;
+      --amber: #FBBF24;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --radius-sm: 8px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-oled);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    button, input, select {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    /* Custom OLED Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
+
+    /* App Shell Layout */
+    .app-shell {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      background: var(--bg-oled);
+      overflow: hidden;
+    }
+
+    /* =========================================================================
+       LEFT COLLAPSIBLE SIDEBAR (GEMINI INTERFACE STYLE)
+       ========================================================================= */
+    .sidebar {
+      width: 268px;
+      flex-shrink: 0;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--hairline);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      z-index: 50;
+      transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1), transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sidebar.collapsed {
+      width: 72px;
+    }
+
+    .sidebar-header {
+      height: 64px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      gap: 8px;
+    }
+
+    .sidebar.collapsed .sidebar-header {
+      justify-content: center;
+      padding: 0 10px;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--bg-surface);
+      border: 1px solid rgba(0, 210, 255, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--neon-blue);
+    }
+
+    .brand-text-wrap {
+      min-width: 0;
+    }
+
+    .brand-name {
+      font-weight: 700;
+      font-size: 13.5px;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-name .ce-part { color: #FFFFFF; }
+    .brand-name .hub-part {
+      background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: background 160ms ease, color 160ms ease;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
+      color: #FFFFFF;
+    }
+
+    .sidebar-nav {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      padding: 4px 10px 6px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 12px;
+      border-radius: 11px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border: 1px solid transparent;
+      transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+      text-align: left;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.045);
+      color: #FFFFFF;
+    }
+
+    .nav-btn.active {
+      background: rgba(255, 255, 255, 0.065);
+      color: #FFFFFF;
+      border-color: rgba(255, 255, 255, 0.10);
+    }
+
+    .nav-btn.active svg {
+      color: var(--neon-blue);
+    }
+
+    .nav-btn svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      line-height: 1.3;
+    }
+
+    .sidebar.collapsed .brand-lockup,
+    .sidebar.collapsed .nav-section-label,
+    .sidebar.collapsed .nav-label,
+    .sidebar.collapsed .nav-badge,
+    .sidebar.collapsed .sidebar-fleet-section,
+    .sidebar.collapsed .sidebar-footer-text {
+      display: none !important;
+    }
+
+    .sidebar.collapsed .nav-btn {
+      justify-content: center;
+      padding: 11px 0;
+    }
+
+    /* Sidebar Fleet Nodes Quick-Jump List */
+    .sidebar-fleet-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .fleet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px 8px;
+    }
+
+    .fleet-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .fleet-live-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--emerald);
+    }
+
+    .fleet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .fleet-node-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      text-align: left;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    .fleet-node-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.07);
+    }
+
+    .fleet-node-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .fleet-node-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #FFFFFF;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .fleet-node-sub {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .fleet-node-batt {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--neon-blue);
+      flex-shrink: 0;
+    }
+
+    /* Sidebar Footer */
+    .sidebar-footer {
+      padding: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: auto;
+    }
+
+    .dev-credit-box {
+      background: var(--bg-surface-2);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar.collapsed .dev-credit-box {
+      justify-content: center;
+      padding: 10px 6px;
+    }
+
+    .dev-credit-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .dev-credit-sub {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--neon-blue);
+      margin-top: 2px;
+    }
+
+    /* Mobile Backdrop */
+    .mobile-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(2px);
+      z-index: 45;
+    }
+
+    .mobile-backdrop.open {
+      display: block;
+    }
+
+    /* =========================================================================
+       MAIN WORKSPACE & TOP BAR
+       ========================================================================= */
+    .workspace {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 64px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--hairline);
+      background: rgba(0, 0, 0, 0.94);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mobile-menu-btn {
+      display: none;
+    }
+
+    .topbar-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .topbar-title {
+      margin: 0;
+      font-size: 16.5px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .topbar-divider {
+      color: #3F3F46;
+      font-size: 14px;
+    }
+
+    .topbar-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-shrink: 0;
+    }
+
+    .ist-clock-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.25;
+      padding-left: 4px;
+    }
+
+    .clock-time {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .clock-date {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* Main Scroll Viewport */
+    .main-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 22px;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .view-section {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .view-section.active {
+      display: flex;
+    }
+
+    /* =========================================================================
+       REUSABLE OLED CARDS, NEON ACCENTS & PILL BADGES
+       ========================================================================= */
+    .oled-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg);
+      transition: border-color 180ms ease;
+    }
+
+    .oled-card:hover {
+      border-color: var(--hairline-strong);
+    }
+
+    .oled-subcard {
+      background: var(--bg-surface-2);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-md);
+    }
+
+    .edge-blue, .edge-pink, .edge-dual {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .edge-blue::before, .edge-pink::before, .edge-dual::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      bottom: 14px;
+      width: 2px;
+      border-radius: 999px;
+    }
+
+    .edge-blue::before { background: linear-gradient(180deg, var(--neon-blue), rgba(0, 210, 255, 0.25)); }
+    .edge-pink::before { background: linear-gradient(180deg, var(--neon-pink), rgba(255, 42, 133, 0.25)); }
+    .edge-dual::before { background: linear-gradient(180deg, var(--neon-blue), var(--neon-pink)); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+    }
+
+    .pill-blue {
+      background: rgba(0, 210, 255, 0.10);
+      border: 1px solid rgba(0, 210, 255, 0.34);
+      color: var(--neon-blue);
+    }
+
+    button.pill-blue:hover {
+      background: rgba(0, 210, 255, 0.20);
+    }
+
+    .pill-pink {
+      background: rgba(255, 42, 133, 0.10);
+      border: 1px solid rgba(255, 42, 133, 0.36);
+      color: var(--neon-pink);
+    }
+
+    button.pill-pink:hover {
+      background: rgba(255, 42, 133, 0.20);
+    }
+
+    .pill-emerald {
+      background: rgba(52, 211, 153, 0.10);
+      border: 1px solid rgba(52, 211, 153, 0.34);
+      color: var(--emerald);
+    }
+
+    button.pill-emerald:hover {
+      background: rgba(52, 211, 153, 0.20);
+    }
+
+    .pill-muted {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      color: var(--text-secondary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-blue {
+      background: rgba(0, 210, 255, 0.12);
+      border: 1px solid rgba(0, 210, 255, 0.38);
+      color: var(--neon-blue);
+    }
+    .btn-blue:hover:not(:disabled) { background: rgba(0, 210, 255, 0.22); }
+
+    .btn-pink {
+      background: rgba(255, 42, 133, 0.12);
+      border: 1px solid rgba(255, 42, 133, 0.40);
+      color: var(--neon-pink);
+    }
+    .btn-pink:hover:not(:disabled) { background: rgba(255, 42, 133, 0.22); }
+
+    .btn-emerald {
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.38);
+      color: var(--emerald);
+    }
+    .btn-emerald:hover:not(:disabled) { background: rgba(52, 211, 153, 0.22); }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      color: #D4D4D8;
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.09);
+      color: #FFFFFF;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .dot-blue { background: var(--neon-blue); }
+    .dot-pink { background: var(--neon-pink); }
+    .dot-emerald { background: var(--emerald); }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.42; transform: scale(0.82); }
+    }
+    .pulse { animation: pulseDot 1.8s ease-in-out infinite; }
+
+    .label-xs {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .tabular { font-variant-numeric: tabular-nums; }
+    .mono { font-family: var(--font-mono); }
+
+    /* =========================================================================
+       DASHBOARD HERO, BENTO GRID & MAP
+       ========================================================================= */
+    .hero-card {
+      padding: 28px 24px;
+      text-align: center;
+    }
+
+    .hero-title {
+      margin: 12px 0 0;
+      font-size: clamp(24px, 3.2vw, 36px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+
+    .hero-title .ce { color: #FFFFFF; }
+    .hero-title .sep { color: var(--neon-blue); margin: 0 6px; }
+    .hero-title .hub {
+      background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      margin: 10px auto 0;
+      max-width: 680px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+    }
+
+    .hero-meta-row {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .hero-meta-chip {
+      background: var(--bg-surface-2);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 10px;
+      padding: 8px 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    /* 8-Box Home-Assistant Bento Grid */
+    .bento-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric-box {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .metric-val-row {
+      margin-top: 12px;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .metric-val {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #FFFFFF;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-unit {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .metric-sub {
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* Map + Hotspot Watchlist Row */
+    .map-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .map-panel {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .panel-title {
+      margin: 3px 0 0;
+      font-size: 15.5px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .map-viewport {
+      position: relative;
+      width: 100%;
+      height: 420px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+      background: #050507;
+    }
+
+    #city-map {
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+    }
+
+    #fallback-map-canvas {
+      display: none;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .map-legend {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 400;
+      background: rgba(0, 0, 0, 0.86);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9px;
+      padding: 7px 11px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #D4D4D8;
+      pointer-events: none;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hotspot-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .hotspot-btn {
+      width: 100%;
+      text-align: left;
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+
+    .hotspot-btn:hover {
+      border-color: rgba(255, 42, 133, 0.45);
+      background: #14141B;
+    }
+
+    /* Leaflet Dark OLED Overrides & Keyless OSM Dark-Mode Inversion */
+    .leaflet-container { background: #000000 !important; font-family: var(--font-sans) !important; }
+    .osm-dark-mode .leaflet-tile-pane {
+      filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%);
+    }
+    .leaflet-popup-content-wrapper {
+      background: #0A0A0D !important;
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      border-radius: 12px !important;
+      box-shadow: none !important;
+    }
+    .leaflet-popup-tip { background: #0A0A0D !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; }
+    .leaflet-control-zoom a { background: #0A0A0D !important; color: #E4E4E7 !important; border-color: rgba(255, 255, 255, 0.12) !important; }
+    .leaflet-control-zoom a:hover { background: #18181F !important; color: var(--neon-blue) !important; }
+    .leaflet-control-attribution { background: rgba(0, 0, 0, 0.72) !important; color: #71717A !important; font-size: 9px !important; }
+    .leaflet-control-attribution a { color: #A1A1AA !important; }
+
+    @keyframes mapRingPulse {
+      0% { transform: scale(0.8); opacity: 0.9; }
+      75% { transform: scale(2.4); opacity: 0; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .ring-blue {
+      position: absolute;
+      inset: -6px;
+      border-radius: 999px;
+      border: 2px solid #00D2FF;
+      animation: mapRingPulse 2s ease-out infinite;
+    }
+    .ring-pink {
+      position: absolute;
+      inset: -5px;
+      border-radius: 999px;
+      border: 2px solid #FF2A85;
+      animation: mapRingPulse 2.3s ease-out infinite;
+    }
+
+    /* =========================================================================
+       LIVE FEED VIEW (HOTEL-LISTING HORIZONTAL CARDS)
+       ========================================================================= */
+    .section-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-h2 {
+      margin: 4px 0 0;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+    }
+
+    .feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feed-card {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .feed-media {
+      position: relative;
+      border-radius: 11px;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+      background: #000000;
+      aspect-ratio: 16 / 9;
+      min-height: 198px;
+    }
+
+    .feed-media canvas,
+    .feed-media img,
+    .feed-media video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .feed-media img,
+    .feed-media video {
+      position: absolute;
+      inset: 0;
+    }
+
+    .feed-hud-overlay {
+      position: absolute;
+      inset: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .feed-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .feed-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .stat-cell {
+      padding: 11px 12px;
+    }
+
+    .stat-val {
+      margin-top: 5px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #FFFFFF;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stat-sub {
+      margin-top: 3px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-footer-row {
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* =========================================================================
+       CIVICMATCH (AI INFERENCE REVIEW) & INCIDENT DISPATCH
+       ========================================================================= */
+    .stats-3-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+      transition: width 320ms ease;
+    }
+
+    .inference-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .inference-card {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .snapshot-box {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+      background: #000000;
+      aspect-ratio: 16 / 9;
+      width: 100%;
+    }
+
+    .snapshot-box canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .reclass-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .oled-select, .oled-input {
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 9px;
+      padding: 8px 11px;
+      font-size: 12px;
+      color: #FFFFFF;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+
+    .oled-select:focus, .oled-input:focus {
+      border-color: var(--neon-blue);
+    }
+
+    .dispatch-card {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .captures-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .capture-tile {
+      padding: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .log-item {
+      padding: 10px 13px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+    }
+
+    /* =========================================================================
+       NODES HARDWARE GRID (TWO-COLUMN STRUCTURED CARDS)
+       ========================================================================= */
+    .nodes-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .node-card {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .node-fields-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    @keyframes flashCard {
+      0% { border-color: var(--neon-blue); background: rgba(0, 210, 255, 0.08); }
+      100% { border-color: var(--hairline); background: var(--bg-surface); }
+    }
+    .flash-highlight { animation: flashCard 1.5s ease-out; }
+
+    /* =========================================================================
+       NODE 01 DEDICATED FULL SCREEN TACTICAL OVERLAY
+       ========================================================================= */
+    #node1-fullscreen-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000000;
+      z-index: 150;
+      overflow: hidden;
+    }
+
+    #node1-fullscreen-overlay.open {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fs-media-stage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fs-media-stage canvas,
+    .fs-media-stage img,
+    .fs-media-stage video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000000;
+    }
+
+    .fs-media-stage img,
+    .fs-media-stage video {
+      position: absolute;
+      inset: 0;
+    }
+
+    .fs-hud-top,
+    .fs-hud-bottom {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      z-index: 160;
+      background: rgba(10, 10, 13, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .fs-hud-top {
+      top: 16px;
+    }
+
+    .fs-hud-bottom {
+      bottom: 16px;
+    }
+
+    #node1-fullscreen-overlay.hud-hidden .fs-hud-top {
+      opacity: 0;
+      transform: translateY(-14px);
+      pointer-events: none;
+    }
+
+    #node1-fullscreen-overlay.hud-hidden .fs-hud-bottom {
+      opacity: 0;
+      transform: translateY(14px);
+      pointer-events: none;
+    }
+
+    .fs-restore-hud-btn {
+      display: none;
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 165;
+      background: rgba(10, 10, 13, 0.84);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 210, 255, 0.42);
+      color: var(--neon-blue);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    #node1-fullscreen-overlay.hud-hidden .fs-restore-hud-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .fs-telemetry-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .fs-telem-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .fs-telem-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .fs-telem-val {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #FFFFFF;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =========================================================================
+       MODALS & TOASTS
+       ========================================================================= */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0, 0, 0, 0.84);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 540px;
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+
+    .modal-box.wide {
+      max-width: 920px;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .full-width { width: 100%; }
+
+    .inline-msg {
+      padding: 10px 12px;
+      border-radius: 9px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      display: none;
+    }
+    .inline-msg.show { display: block; }
+    .inline-msg.error {
+      background: rgba(255, 42, 133, 0.12);
+      border: 1px solid rgba(255, 42, 133, 0.4);
+      color: #FF7AB6;
+    }
+    .inline-msg.success {
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      color: var(--emerald);
+    }
+
+    .inspector-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 250;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 360px;
+      width: calc(100vw - 40px);
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: #0D0D12;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 12px 14px;
+      animation: toastIn 180ms ease-out forwards;
+    }
+
+    .toast-blue { border-left: 3px solid var(--neon-blue); }
+    .toast-pink { border-left: 3px solid var(--neon-pink); }
+    .toast-emerald { border-left: 3px solid var(--emerald); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hidden { display: none !important; }
+
+    /* =========================================================================
+       RESPONSIVE BREAKPOINTS
+       ========================================================================= */
+    @media (max-width: 1180px) {
+      .bento-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .map-grid { grid-template-columns: 1fr; }
+      .feed-card { grid-template-columns: 1fr; }
+      .inference-cards-grid { grid-template-columns: 1fr; }
+      .nodes-grid { grid-template-columns: 1fr; }
+      .inspector-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+      .mobile-menu-btn {
+        display: inline-flex;
+      }
+      .topbar-divider, .topbar-subtitle {
+        display: none;
+      }
+      .stats-3-grid {
+        grid-template-columns: 1fr;
+      }
+      .feed-stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar { padding: 0 12px; }
+      .main-scroll { padding: 14px; }
+      .bento-metrics { grid-template-columns: 1fr; }
+      .ist-clock-box, .topbar-live-pill { display: none; }
+      .node-fields-grid { grid-template-columns: 1fr; }
+      .fs-hud-top, .fs-hud-bottom { left: 10px; right: 10px; padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="mobile-backdrop" class="mobile-backdrop"></div>
+
+  <!-- =========================================================================
+       NODE 01 DEDICATED FULL SCREEN TACTICAL LIVE-FEED OVERLAY
+       ========================================================================= -->
+  <div id="node1-fullscreen-overlay" role="dialog" aria-modal="true" aria-label="Node 01 Full Screen Live Feed">
+    <!-- Pure Black Full-Viewport Media Stage -->
+    <div class="fs-media-stage">
+      <canvas id="fs-node1-canvas"></canvas>
+      <img id="fs-node1-mjpeg" class="hidden" alt="Node 01 Full Screen Hardware Stream" />
+      <video id="fs-node1-webcam" class="hidden" autoplay playsinline muted></video>
+    </div>
+
+    <!-- Floating Restore HUD Button (shown only when HUD is hidden) -->
+    <button id="fs-restore-hud-btn" class="fs-restore-hud-btn">
+      <span class="dot dot-blue pulse"></span>
+      SHOW HUD
+    </button>
+
+    <!-- Top Tactical HUD Bar -->
+    <div class="fs-hud-top edge-dual">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+        <span class="pill pill-emerald">
+          <span class="dot dot-emerald pulse"></span>
+          NODE-01 // LIVE FEED
+        </span>
+        <span id="fs-source-badge" class="pill pill-blue">Live Optical</span>
+        <span id="fs-ist-time" class="mono" style="font-size:12px;color:#E4E4E7;">--:--:-- IST</span>
+      </div>
+
+      <div class="btn-group">
+        <button id="fs-toggle-hud-btn" class="btn btn-ghost">Hide HUD</button>
+        <button id="fs-config-link-btn" class="btn btn-blue">Configure Link</button>
+        <button id="fs-exit-btn" class="btn btn-pink">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Exit Full Screen (ESC)
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Tactical Telemetry Bar -->
+    <div class="fs-hud-bottom edge-blue">
+      <div class="fs-telemetry-strip">
+        <div class="fs-telem-item">
+          <span class="fs-telem-label">Live GPS Coordinates</span>
+          <span id="fs-gps-val" class="fs-telem-val" style="color:var(--neon-blue);">12.93520° N, 77.62450° E</span>
+        </div>
+        <div class="fs-telem-item">
+          <span class="fs-telem-label">Pipeline Rate</span>
+          <span id="fs-fps-val" class="fs-telem-val">29.4 FPS</span>
+        </div>
+        <div class="fs-telem-item">
+          <span class="fs-telem-label">Hailo-8L NPU Temp</span>
+          <span id="fs-temp-val" class="fs-telem-val">49.4°C</span>
+        </div>
+        <div class="fs-telem-item">
+          <span class="fs-telem-label">Battery</span>
+          <span id="fs-batt-val" class="fs-telem-val" style="color:var(--emerald);">88%</span>
+        </div>
+        <div class="fs-telem-item">
+          <span class="fs-telem-label">Active Detections</span>
+          <span id="fs-det-val" class="fs-telem-val" style="color:var(--neon-pink);">3 OBJECTS</span>
+        </div>
+      </div>
+
+      <div class="mono" style="font-size:10.5px;color:var(--text-muted);">
+        Civic Eye - Command Hub • Press <strong style="color:#FFFFFF;">F</strong> or <strong style="color:#FFFFFF;">ESC</strong> to toggle
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       NODE 01 HARDWARE CONNECTOR & MAP SETTINGS MODAL
+       ========================================================================= -->
+  <div id="connector-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="conn-title">
+    <div class="oled-card edge-blue modal-box">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="pill pill-blue">NODE-01 UPLINK</span>
+          <h3 id="conn-title" style="margin:0;font-size:15.5px;font-weight:700;">Raspberry Pi 5 API Link &amp; Map Settings</h3>
+        </div>
+        <button id="close-connector-btn" class="icon-btn" aria-label="Close modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="oled-subcard" style="padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <div class="label-xs">Hardware Link Status</div>
+            <div id="conn-status-text" class="mono" style="font-size:11.5px;margin-top:4px;color:#FFFFFF;">LIVE OPTICAL FEED • READY FOR RPI 5 BRIDGE</div>
+          </div>
+          <span id="conn-status-pill" class="pill pill-blue">STANDBY</span>
+        </div>
+
+        <div id="conn-inline-msg" class="inline-msg"></div>
+
+        <div>
+          <label class="form-label" for="pi-url-input">Raspberry Pi 5 Base URL</label>
+          <input id="pi-url-input" class="oled-input full-width mono" type="url" placeholder="http://192.168.1.42:8000 or https://xxxx.trycloudflare.com" />
+        </div>
+
+        <div>
+          <label class="form-label" for="pi-key-input">API Key (x-api-key header)</label>
+          <input id="pi-key-input" class="oled-input full-width mono" type="password" placeholder="civiceye_secret_2026" />
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+            Authenticates via <span class="mono" style="color:#D4D4D8;">POST /session</span>, mounts MJPEG <span class="mono" style="color:#D4D4D8;">/video_feed</span> to Live Feed &amp; Full Screen, and opens <span class="mono" style="color:#D4D4D8;">/ws/telemetry</span>.
+          </div>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;">
+          <label class="form-label" for="carto-key-input">Optional CARTO Basemaps API Key (Dark Matter Tiles)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="carto-key-input" class="oled-input mono" style="flex:1;" type="text" placeholder="Leave blank for keyless Dark OSM tiles" />
+            <button id="apply-map-key-btn" class="btn btn-ghost">Apply Map</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+            Defaults to keyless dark-inverted OpenStreetMap tiles. Paste a CARTO key anytime to switch to native CARTO Dark Matter tiles.
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding-top:6px;">
+          <button id="disconnect-pi-btn" class="btn btn-ghost">Disconnect &amp; Clear</button>
+          <button id="connect-pi-btn" class="btn btn-blue">
+            <span class="dot dot-blue pulse"></span>
+            Connect Node 01
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       STREAM INSPECTOR MODAL
+       ========================================================================= -->
+  <div id="inspector-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="insp-title">
+    <div class="oled-card edge-dual modal-box wide">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <span id="insp-badge" class="pill pill-emerald">NODE-01 • LIVE</span>
+          <h3 id="insp-title" style="margin:0;font-size:15.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Live Optical Telemetry</h3>
+        </div>
+        <button id="close-inspector-btn" class="icon-btn" aria-label="Close stream inspector">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="inspector-grid">
+          <div>
+            <div class="feed-media" style="min-height:260px;">
+              <canvas id="insp-canvas"></canvas>
+              <img id="insp-mjpeg" class="hidden" alt="Node 01 Live Hardware Stream" />
+              <video id="insp-webcam" class="hidden" autoplay playsinline muted></video>
+            </div>
+            <div class="feed-stats-grid" style="margin-top:12px;">
+              <div class="oled-subcard stat-cell">
+                <div class="label-xs">Inference Engine</div>
+                <div id="insp-engine" class="stat-val mono">Hailo-8L • YOLOv8n</div>
+              </div>
+              <div class="oled-subcard stat-cell">
+                <div class="label-xs">Live GPS</div>
+                <div id="insp-gps" class="stat-val mono" style="color:var(--neon-blue);">12.9352, 77.6245</div>
+              </div>
+              <div class="oled-subcard stat-cell">
+                <div class="label-xs">Pipeline Rate</div>
+                <div id="insp-fps" class="stat-val mono">29.4 FPS • 49.4°C</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="oled-subcard" style="padding:14px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+            <div>
+              <div class="label-xs" style="margin-bottom:10px;">Live Detection Stream</div>
+              <div id="insp-log" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:11px;"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
+              <button id="insp-fullscreen-btn" class="btn btn-pink full-width hidden">Launch Node 01 Full Screen</button>
+              <button id="insp-locate-btn" class="btn btn-blue full-width">Focus Node on City Map</button>
+              <button id="insp-done-btn" class="btn btn-ghost full-width">Close Inspector</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MAIN APPLICATION SHELL
+       ========================================================================= -->
+  <div class="app-shell">
+
+    <!-- LEFT COLLAPSIBLE SIDEBAR (GEMINI STYLE) -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-lockup">
+          <div class="brand-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            </svg>
+          </div>
+          <div class="brand-text-wrap">
+            <div class="brand-name"><span class="ce-part">Civic Eye</span> - <span class="hub-part">Command Hub</span></div>
+            <div class="brand-sub">Bengaluru Edge-AI Grid</div>
+          </div>
+        </div>
+        <button id="sidebar-toggle-btn" class="icon-btn" title="Collapse or expand sidebar" aria-label="Toggle sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="sidebar-nav" aria-label="Primary Navigation">
+        <div class="nav-section-label">Command Modules</div>
+
+        <button class="nav-btn active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span class="nav-label">Dashboard</span>
+        </button>
+
+        <button class="nav-btn" data-view="livefeed">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="nav-label">Live Feed</span>
+          <span class="nav-badge pill-emerald">5 LIVE</span>
+        </button>
+
+        <button class="nav-btn" data-view="civicmatch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path d="M9.75 3.1v5.72a2.25 2.25 0 01-.66 1.59L5 14.5M14.25 3.1v5.72a2.25 2.25 0 00.66 1.59L19.8 15.3M8.5 3.1h7M5 14.5c-1.23 1.23-.65 3.32 1.07 3.61 3.92.66 7.94.66 11.86 0 1.72-.29 2.3-2.38 1.07-3.61" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="nav-label">CivicMATCH</span>
+          <span id="nav-badge-civicmatch" class="nav-badge pill-pink">5</span>
+        </button>
+
+        <button class="nav-btn" data-view="dispatch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="nav-label">Incident Dispatch</span>
+          <span id="nav-badge-dispatch" class="nav-badge pill-blue">3</span>
+        </button>
+
+        <button class="nav-btn" data-view="nodes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+            <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" stroke-linecap="round" />
+          </svg>
+          <span class="nav-label">Nodes</span>
+          <span class="nav-badge pill-muted">5</span>
+        </button>
+      </nav>
+
+      <!-- Fleet Nodes Quick-Jump List (All 5 LIVE) -->
+      <div class="sidebar-fleet-section">
+        <div class="fleet-header">
+          <span class="fleet-title">Fleet Nodes (5 Live)</span>
+          <span class="fleet-live-tag">100%</span>
+        </div>
+        <div id="sidebar-fleet-list" class="fleet-list"></div>
+      </div>
+
+      <!-- Sidebar Footer with Developer Credit -->
+      <div class="sidebar-footer">
+        <div class="dev-credit-box">
+          <span class="dot dot-blue pulse"></span>
+          <div class="sidebar-footer-text" style="min-width:0;">
+            <div class="dev-credit-title">Developed by Tanmay Joshi</div>
+            <div class="dev-credit-sub">RPi 5 • Hailo-8L • YOLOv8n</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="workspace">
+
+      <!-- Minimal Top Navigation Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="mobile-menu-btn" class="icon-btn mobile-menu-btn" aria-label="Open menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
+            </svg>
+          </button>
+          <div class="topbar-title-group">
+            <h1 id="topbar-title" class="topbar-title">Dashboard</h1>
+            <span class="topbar-divider">/</span>
+            <span id="topbar-subtitle" class="topbar-subtitle">Bengaluru Municipal Command Overview</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <span class="pill pill-emerald topbar-live-pill">
+            <span class="dot dot-emerald pulse"></span>
+            5/5 LIVE
+          </span>
+
+          <!-- Quick Launch NODE 01 FULL SCREEN -->
+          <button id="topbar-fullscreen-btn" class="pill pill-pink" title="Launch Node 01 Full Screen Live Feed (Shortcut: F)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>NODE 01 FULL SCREEN</span>
+          </button>
+
+          <!-- NODE 01 LINK Button -->
+          <button id="topbar-node1-btn" class="pill pill-blue" title="Configure Raspberry Pi 5 API Link & Map Settings">
+            <span id="topbar-node1-dot" class="dot dot-blue pulse"></span>
+            <span id="topbar-node1-label">NODE 01 LINK</span>
+          </button>
+
+          <div class="ist-clock-box">
+            <span id="ist-clock" class="clock-time">--:--:-- IST</span>
+            <span id="ist-date" class="clock-date">BENGALURU GRID</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Viewport -->
+      <main id="main-scroll" class="main-scroll">
+        <div class="container">
+
+          <!-- =============================================================== -->
+          <!-- VIEW 1: DASHBOARD                                               -->
+          <!-- =============================================================== -->
+          <section id="view-dashboard" class="view-section active">
+
+            <!-- Centered Hero / Profile Header Card -->
+            <div class="oled-card edge-dual hero-card">
+              <span class="pill pill-blue">
+                <span class="dot dot-blue pulse"></span>
+                BENGALURU MUNICIPAL TELEMETRY • SECTORS 01–08
+              </span>
+              <h2 class="hero-title">
+                <span class="ce">Civic Eye</span><span class="sep">-</span><span class="hub">Command Hub</span>
+              </h2>
+              <p class="hero-desc">
+                Autonomous Edge-AI civic infrastructure intelligence powered by Raspberry Pi 5 &amp; Hailo-8L NPU units mounted across municipal transit and sanitation fleets — mapping waste, potholes, and illegal hoardings in real time.
+              </p>
+              <div class="hero-meta-row">
+                <div class="hero-meta-chip">
+                  <span class="label-xs">Fleet Status</span>
+                  <span class="mono" style="font-weight:700;color:var(--emerald);">5/5 UNITS LIVE</span>
+                </div>
+                <div class="hero-meta-chip">
+                  <span class="label-xs">AI Engine</span>
+                  <span class="mono" style="font-weight:700;color:#FFFFFF;">CivicMATCH • YOLOv8n</span>
+                </div>
+                <div class="hero-meta-chip" style="border-color:rgba(0,210,255,0.28);">
+                  <span class="dot dot-blue"></span>
+                  <span style="font-weight:600;color:#FFFFFF;">Developed by Tanmay Joshi</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 8 Home-Assistant-Style Bento Metric Boxes -->
+            <div class="bento-metrics">
+              <div class="oled-card edge-blue metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Streets Mapped</span>
+                  <span class="mono" style="font-size:10.5px;color:var(--neon-blue);">+14.2 km</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-streets" class="metric-val">162.8</span>
+                  <span class="metric-unit">km</span>
+                </div>
+                <div class="metric-sub">21 arterial corridors scanned</div>
+              </div>
+
+              <div class="oled-card edge-pink metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Garbage Identified</span>
+                  <span class="pill pill-pink" style="padding:2px 7px;font-size:9.5px;">ACTIVE</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-garbage-id" class="metric-val">1,348</span>
+                  <span class="metric-unit">cases</span>
+                </div>
+                <div class="metric-sub">CivicMATCH verified detections</div>
+              </div>
+
+              <div class="oled-card metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Cases Reported</span>
+                  <span class="mono" style="font-size:10.5px;color:var(--text-secondary);">30D</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-reported" class="metric-val">364</span>
+                  <span class="metric-unit">tickets</span>
+                </div>
+                <div class="metric-sub">Auto-synced to BBMP portal</div>
+              </div>
+
+              <div class="oled-card edge-pink metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">High-Risk Zones</span>
+                  <span class="mono" style="font-size:10.5px;color:var(--neon-pink);">ALERT</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-highrisk" class="metric-val">6</span>
+                  <span class="metric-unit">wards</span>
+                </div>
+                <div class="metric-sub">Red-zone hotspots on city map</div>
+              </div>
+
+              <div class="oled-card edge-blue metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Cases Resolved</span>
+                  <span class="mono" style="font-size:10.5px;color:var(--emerald);">65.4%</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-resolved" class="metric-val">238</span>
+                  <span class="metric-unit">closed</span>
+                </div>
+                <div class="metric-sub">Verified on follow-up patrol</div>
+              </div>
+
+              <div class="oled-card edge-pink metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Cases In Progress</span>
+                  <span class="pill pill-blue" style="padding:2px 7px;font-size:9.5px;">DISPATCHED</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-inprogress" class="metric-val">92</span>
+                  <span class="metric-unit">crews</span>
+                </div>
+                <div class="metric-sub">Live-syncs with Incident Dispatch</div>
+              </div>
+
+              <div class="oled-card metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Garbage Removed</span>
+                  <span class="mono" style="font-size:10.5px;color:var(--neon-blue);">+340 kg</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-garbage-kg" class="metric-val">5,140</span>
+                  <span class="metric-unit">kg</span>
+                </div>
+                <div class="metric-sub">Cleared across 16 wards</div>
+              </div>
+
+              <div class="oled-card metric-box">
+                <div class="metric-head">
+                  <span class="label-xs">Illegal Hoardings Removed</span>
+                  <span class="mono" style="font-size:10.5px;color:var(--neon-pink);">ENFORCED</span>
+                </div>
+                <div class="metric-val-row">
+                  <span id="m-hoardings" class="metric-val">71</span>
+                  <span class="metric-unit">units</span>
+                </div>
+                <div class="metric-sub">Unauthorized flexes cleared</div>
+              </div>
+            </div>
+
+            <!-- Centralized Bengaluru Map + Red-Zone Watchlist -->
+            <div class="map-grid">
+              <div class="oled-card map-panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="label-xs">Centralized Geospatial Telemetry</div>
+                    <h3 class="panel-title">Bengaluru Affected Hotspots &amp; Live Fleet Positions</h3>
+                  </div>
+                  <div id="map-filter-bar" class="filter-row">
+                    <button class="pill pill-blue map-filter-btn" data-filter="all">All</button>
+                    <button class="pill pill-muted map-filter-btn" data-filter="garbage">Garbage</button>
+                    <button class="pill pill-muted map-filter-btn" data-filter="potholes">Potholes</button>
+                    <button class="pill pill-muted map-filter-btn" data-filter="hoardings">Illegal Hoardings</button>
+                    <button class="pill pill-muted map-filter-btn" data-filter="nodes">Nodes</button>
+                  </div>
+                </div>
+
+                <div id="map-viewport-box" class="map-viewport osm-dark-mode">
+                  <div id="city-map"></div>
+                  <canvas id="fallback-map-canvas"></canvas>
+                  <div class="map-legend">
+                    <span class="legend-item"><span class="dot dot-pink"></span> High-Risk Hotspot</span>
+                    <span class="legend-item"><span class="dot dot-blue"></span> NODE-01 (RPi 5 Primary)</span>
+                    <span class="legend-item"><span class="dot dot-emerald"></span> LIVE Fleet Nodes 02–05</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="oled-card map-panel" style="justify-content:space-between;">
+                <div>
+                  <div class="panel-header">
+                    <div>
+                      <div class="label-xs">Priority Watchlist</div>
+                      <h3 class="panel-title">High-Risk Hotspots</h3>
+                    </div>
+                    <span class="pill pill-pink">6 RED ZONES</span>
+                  </div>
+                  <div id="hotspot-watchlist" class="hotspot-list"></div>
+                </div>
+                <div style="padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;font-size:12px;">
+                  <span style="color:var(--text-muted);">Select a zone to center map</span>
+                  <button id="goto-dispatch-link" style="color:var(--neon-blue);font-weight:600;">Incident Dispatch →</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- VIEW 2: LIVE FEED (ALL 5 LIVE NODES)                            -->
+          <!-- =============================================================== -->
+          <section id="view-livefeed" class="view-section">
+            <div class="section-top">
+              <div>
+                <div class="label-xs">Real-Time Optical Telemetry</div>
+                <h2 class="section-h2">Live Fleet Camera Feeds</h2>
+              </div>
+              <div class="btn-group">
+                <button id="livefeed-fs-btn" class="btn btn-pink">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  Node 01 Full Screen
+                </button>
+                <button id="livefeed-config-btn" class="btn btn-blue">Configure Node 01 API Link</button>
+                <span class="pill pill-emerald"><span class="dot dot-emerald pulse"></span>5 / 5 NODES LIVE</span>
+              </div>
+            </div>
+
+            <div id="live-feed-list" class="feed-list"></div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- VIEW 3: CivicMATCH (AI INFERENCE & ACTIVE LEARNING ENGINE)      -->
+          <!-- =============================================================== -->
+          <section id="view-civicmatch" class="view-section">
+            <div class="section-top">
+              <div>
+                <div class="label-xs">Human-in-the-Loop Active Learning</div>
+                <h2 class="section-h2">CivicMATCH — AI Inference Review</h2>
+              </div>
+              <span class="pill pill-pink">LOW-CONFIDENCE QUEUE: 45% – 64%</span>
+            </div>
+
+            <!-- CivicMATCH Model Accuracy & Queue Stats -->
+            <div class="stats-3-grid">
+              <div class="oled-card edge-pink" style="padding:16px;">
+                <div class="label-xs">Pending AI Flags</div>
+                <div class="metric-val-row">
+                  <span id="cm-pending-count" class="metric-val">5</span>
+                  <span class="metric-unit">frames</span>
+                </div>
+                <div class="metric-sub">Requires operator verification</div>
+              </div>
+
+              <div class="oled-card edge-blue" style="padding:16px;">
+                <div class="label-xs">Verified Training Labels</div>
+                <div class="metric-val-row">
+                  <span id="cm-reviewed-count" class="metric-val">148</span>
+                  <span class="metric-unit" style="color:var(--neon-blue);">synced</span>
+                </div>
+                <div class="metric-sub">Queued for YOLOv8n.hef update</div>
+              </div>
+
+              <div class="oled-card" style="padding:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span class="label-xs">CivicMATCH Model Accuracy (mAP)</span>
+                  <span id="cm-map-val" class="mono" style="font-size:13px;font-weight:700;color:var(--neon-blue);">91.6%</span>
+                </div>
+                <div class="progress-track">
+                  <div id="cm-map-bar" class="progress-fill" style="width:66%;"></div>
+                </div>
+                <div class="metric-sub">Target threshold: 95.0% mAP@50</div>
+              </div>
+            </div>
+
+            <!-- Low-Confidence Review Cards -->
+            <div id="civicmatch-cards-grid" class="inference-cards-grid"></div>
+
+            <!-- Audit Log -->
+            <div class="oled-card" style="padding:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="label-xs">CivicMATCH Retraining Audit Trail</span>
+                <span class="mono" style="font-size:10.5px;color:var(--text-muted);">Hailo-8L Active Dataset</span>
+              </div>
+              <div id="civicmatch-log" class="log-list">
+                <div class="oled-subcard log-item">
+                  <span>[14:12 IST] Frame #CM-8821 confirmed as <strong style="color:var(--neon-blue);">Garbage</strong> (58% → Verified)</span>
+                  <span style="color:var(--text-muted);">NODE-01</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- VIEW 4: INCIDENT DISPATCH (MULTI-NODE VERIFICATION & TEAMS)     -->
+          <!-- =============================================================== -->
+          <section id="view-dispatch" class="view-section">
+            <div class="section-top">
+              <div>
+                <div class="label-xs">Multi-Node Cross-Verification</div>
+                <h2 class="section-h2">Incident Dispatch — Field Team Coordination</h2>
+              </div>
+              <span id="dispatch-open-pill" class="pill pill-pink">3 READY FOR DISPATCH</span>
+            </div>
+
+            <div id="dispatch-cards-list" class="feed-list"></div>
+
+            <div class="oled-card" style="padding:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div class="label-xs">Municipal Command Audit</div>
+                  <h3 class="panel-title">Live Team Dispatch Log</h3>
+                </div>
+                <span id="dispatch-log-count" class="pill pill-blue">1 LOGGED</span>
+              </div>
+              <div id="dispatch-log-list" class="log-list"></div>
+            </div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- VIEW 5: NODES (5 LIVE HARDWARE CARDS)                           -->
+          <!-- =============================================================== -->
+          <section id="view-nodes" class="view-section">
+            <div class="section-top">
+              <div>
+                <div class="label-xs">Edge Compute Fleet Diagnostics</div>
+                <h2 class="section-h2">Fleet Nodes — Hardware &amp; Power Telemetry</h2>
+              </div>
+              <button id="ping-all-btn" class="btn btn-blue">Ping Entire Fleet</button>
+            </div>
+
+            <div id="nodes-grid" class="nodes-grid"></div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Leaflet 1.9.4 JS (wrapped safely in try/catch with fallback) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =======================================================================
+         APPLICATION STATE (ALL 5 FLEET NODES LIVE ACROSS BENGALURU)
+         ======================================================================= */
+      const state = {
+        currentView: 'dashboard',
+        sidebarCollapsed: false,
+        mapFilter: 'all',
+        useFallbackMap: false,
+        cartoKey: '',
+        webcamActive: false,
+        webcamStream: null,
+        inspectorNodeId: null,
+        fullscreenOpen: false,
+        fullscreenHudHidden: false,
+        node1Link: {
+          connected: false,
+          url: '',
+          apiKey: '',
+          token: null,
+          ws: null
+        },
+        metrics: {
+          streetsMapped: 162.8,
+          garbageIdentified: 1348,
+          casesReported: 364,
+          highRiskZones: 6,
+          casesResolved: 238,
+          casesInProgress: 92,
+          garbageRemovedKg: 5140,
+          hoardingsRemoved: 71
+        },
+        civicMatchStats: {
+          reviewedCount: 148,
+          mapAccuracy: 91.6
+        },
+        nodes: [
+          {
+            id: 'NODE-01',
+            name: 'Node 01',
+            isPrimary: true,
+            hardware: 'Raspberry Pi 5 (8GB) • Hailo-8L NPU • Logitech C270',
+            vehicle: 'BBMP Compactor • KA-01-G-4821',
+            route: 'Koramangala 80ft Rd → MG Road',
+            status: 'LIVE',
+            connection: '5G • 16ms',
+            signalDbm: '-63 dBm',
+            lat: 12.9352,
+            lng: 77.6245,
+            battery: 88,
+            voltage: '12.6V LiFePO4',
+            startTime: '06:00 IST',
+            endTime: '18:00 IST',
+            uptime: '08h 34m',
+            npuTemp: 49.4,
+            fps: 29.4,
+            detectionsCount: 3,
+            rebooting: false
+          },
+          {
+            id: 'NODE-02',
+            name: 'Node 02',
+            isPrimary: false,
+            hardware: 'Edge AI Rover • Hailo-8L NPU • Wide Optical',
+            vehicle: 'BMTC Volvo • KA-57-F-1904',
+            route: 'Indiranagar 100ft Rd → Domlur',
+            status: 'LIVE',
+            connection: '5G • 22ms',
+            signalDbm: '-68 dBm',
+            lat: 12.9784,
+            lng: 77.6408,
+            battery: 79,
+            voltage: '12.4V Pack',
+            startTime: '05:45 IST',
+            endTime: '17:45 IST',
+            uptime: '08h 49m',
+            npuTemp: 47.8,
+            fps: 27.6,
+            detectionsCount: 2,
+            rebooting: false
+          },
+          {
+            id: 'NODE-03',
+            name: 'Node 03',
+            isPrimary: false,
+            hardware: 'Edge AI Rover • Hailo-8L NPU • Curbside Optical',
+            vehicle: 'BBMP Auto Tipper • KA-03-C-9041',
+            route: 'KR Market → Avenue Road Loop',
+            status: 'LIVE',
+            connection: '4G LTE • 31ms',
+            signalDbm: '-74 dBm',
+            lat: 12.9634,
+            lng: 77.5772,
+            battery: 68,
+            voltage: '12.2V Pack',
+            startTime: '06:15 IST',
+            endTime: '16:30 IST',
+            uptime: '08h 19m',
+            npuTemp: 52.1,
+            fps: 26.2,
+            detectionsCount: 4,
+            rebooting: false
+          },
+          {
+            id: 'NODE-04',
+            name: 'Node 04',
+            isPrimary: false,
+            hardware: 'Edge AI Rover • Hailo-8L NPU • Dash Optical',
+            vehicle: 'BMTC Feeder Bus • KA-01-FA-7732',
+            route: 'Silk Board → HSR Layout Sector 2',
+            status: 'LIVE',
+            connection: '5G • 19ms',
+            signalDbm: '-66 dBm',
+            lat: 12.9176,
+            lng: 77.6238,
+            battery: 92,
+            voltage: '12.7V Pack',
+            startTime: '07:00 IST',
+            endTime: '19:00 IST',
+            uptime: '07h 34m',
+            npuTemp: 46.5,
+            fps: 28.8,
+            detectionsCount: 2,
+            rebooting: false
+          },
+          {
+            id: 'NODE-05',
+            name: 'Node 05',
+            isPrimary: false,
+            hardware: 'Edge AI Rover • Hailo-8L NPU • Night-Vision Cam',
+            vehicle: 'BBMP Street Sweeper • KA-04-M-2019',
+            route: 'Whitefield Main Rd → ITPL Corridor',
+            status: 'LIVE',
+            connection: '5G • 24ms',
+            signalDbm: '-69 dBm',
+            lat: 12.9698,
+            lng: 77.7499,
+            battery: 95,
+            voltage: '12.9V LiFePO4',
+            startTime: '06:30 IST',
+            endTime: '18:30 IST',
+            uptime: '08h 04m',
+            npuTemp: 45.2,
+            fps: 27.9,
+            detectionsCount: 1,
+            rebooting: false
+          }
+        ],
+        hotspots: [
+          { id: 'HS-1', name: 'Koramangala 4th Block', lat: 12.9348, lng: 77.6266, severity: 'CRITICAL', radius: 420, garbage: 41, potholes: 15, hoardings: 9, primary: 'garbage' },
+          { id: 'HS-2', name: 'Silk Board Service Rd', lat: 12.9172, lng: 77.6229, severity: 'CRITICAL', radius: 480, garbage: 22, potholes: 34, hoardings: 12, primary: 'potholes' },
+          { id: 'HS-3', name: 'KR Market Perimeter', lat: 12.9639, lng: 77.5764, severity: 'HIGH', radius: 450, garbage: 56, potholes: 11, hoardings: 8, primary: 'garbage' },
+          { id: 'HS-4', name: 'Indiranagar 100ft Rd', lat: 12.9788, lng: 77.6406, severity: 'HIGH', radius: 360, garbage: 12, potholes: 9, hoardings: 28, primary: 'hoardings' },
+          { id: 'HS-5', name: 'MG Road Commercial Stretch', lat: 12.9756, lng: 77.6066, severity: 'HIGH', radius: 330, garbage: 10, potholes: 7, hoardings: 21, primary: 'hoardings' },
+          { id: 'HS-6', name: 'Hebbal Flyover Approach', lat: 13.0358, lng: 77.5970, severity: 'HIGH', radius: 410, garbage: 14, potholes: 29, hoardings: 7, primary: 'potholes' }
+        ],
+        civicMatchQueue: [
+          {
+            id: 'CM-9101',
+            predicted: 'Garbage',
+            confidence: 53,
+            node: 'NODE-01',
+            location: '80ft Rd, Koramangala',
+            gps: '12.9356, 77.6251',
+            time: '14:22:18 IST',
+            note: 'Wet stacked cardboard cartons near footpath tree pit with partial shadow occlusion.',
+            scene: 'garbage-a'
+          },
+          {
+            id: 'CM-9102',
+            predicted: 'Pothole',
+            confidence: 48,
+            node: 'NODE-04',
+            location: 'Silk Board Service Lane',
+            gps: '12.9182, 77.6240',
+            time: '14:21:05 IST',
+            note: 'Reflective rainwater patch along asphalt seam resembling deep road cavity.',
+            scene: 'pothole-a'
+          },
+          {
+            id: 'CM-9103',
+            predicted: 'Illegal Hoarding',
+            confidence: 61,
+            node: 'NODE-02',
+            location: 'Indiranagar 12th Main',
+            gps: '12.9721, 77.6412',
+            time: '14:19:41 IST',
+            note: 'Commercial flex banner strapped to streetlight pole against storefront glass.',
+            scene: 'hoarding-a'
+          },
+          {
+            id: 'CM-9104',
+            predicted: 'Garbage',
+            confidence: 57,
+            node: 'NODE-03',
+            location: 'Avenue Road Cross',
+            gps: '12.9668, 77.5788',
+            time: '14:16:29 IST',
+            note: 'Unbundled rubble sacks placed beside municipal bin enclosure.',
+            scene: 'garbage-b'
+          },
+          {
+            id: 'CM-9105',
+            predicted: 'Pothole',
+            confidence: 46,
+            node: 'NODE-05',
+            location: 'Whitefield Main Rd',
+            gps: '12.9692, 77.7485',
+            time: '14:14:02 IST',
+            note: 'Fresh cold-patch tar fill triggering crater edge heuristic.',
+            scene: 'pothole-b'
+          }
+        ],
+        incidents: [
+          {
+            id: 'INC-401',
+            title: 'Overflowing Roadside Waste Accumulation',
+            category: 'Garbage',
+            location: 'Koramangala 4th Block, 80ft Rd Corner',
+            gps: '12.9348° N, 77.6266° E',
+            matchScore: 96,
+            status: 'READY',
+            dispatchedTeam: null,
+            captures: [
+              { node: 'NODE-01', vehicle: 'BBMP Compactor KA-01-G-4821', time: '12:15 IST', conf: '94%', scene: 'garbage-a' },
+              { node: 'NODE-03', vehicle: 'BBMP Auto Tipper KA-03-C-9041', time: '13:42 IST', conf: '91%', scene: 'garbage-b' },
+              { node: 'NODE-04', vehicle: 'BMTC Feeder KA-01-FA-7732', time: '14:10 IST', conf: '93%', scene: 'garbage-a' }
+            ]
+          },
+          {
+            id: 'INC-402',
+            title: 'Unauthorized Overhead Commercial Flex Banner',
+            category: 'Illegal Hoarding',
+            location: 'Indiranagar 100ft Rd, Metro Pillar 64',
+            gps: '12.9784° N, 77.6408° E',
+            matchScore: 94,
+            status: 'READY',
+            dispatchedTeam: null,
+            captures: [
+              { node: 'NODE-01', vehicle: 'BBMP Compactor KA-01-G-4821', time: '11:30 IST', conf: '92%', scene: 'hoarding-a' },
+              { node: 'NODE-02', vehicle: 'BMTC Volvo KA-57-F-1904', time: '13:55 IST', conf: '89%', scene: 'hoarding-b' }
+            ]
+          },
+          {
+            id: 'INC-403',
+            title: 'Arterial Pothole Cluster (3 Deep Craters)',
+            category: 'Pothole',
+            location: 'Silk Board Junction Service Road',
+            gps: '12.9176° N, 77.6238° E',
+            matchScore: 92,
+            status: 'READY',
+            dispatchedTeam: null,
+            captures: [
+              { node: 'NODE-04', vehicle: 'BMTC Feeder KA-01-FA-7732', time: '10:45 IST', conf: '90%', scene: 'pothole-a' },
+              { node: 'NODE-02', vehicle: 'BMTC Volvo KA-57-F-1904', time: '13:20 IST', conf: '93%', scene: 'pothole-b' }
+            ]
+          }
+        ],
+        dispatchLog: [
+          { time: '13:18 IST', incidentId: 'INC-398', team: 'Housekeeping', location: 'KR Market Gate 2', status: 'EN ROUTE' }
+        ]
+      };
+
+      const viewMeta = {
+        dashboard: { title: 'Dashboard', subtitle: 'Bengaluru Municipal Command Overview' },
+        livefeed: { title: 'Live Feed', subtitle: 'Vehicle-Mounted Optical Telemetry (5/5 Live)' },
+        civicmatch: { title: 'CivicMATCH', subtitle: 'AI Inference & Active Learning Review' },
+        dispatch: { title: 'Incident Dispatch', subtitle: 'Multi-Node Verification & Team Deployment' },
+        nodes: { title: 'Nodes', subtitle: 'Edge Compute Fleet Hardware & Power' }
+      };
+
+      /* =======================================================================
+         UTILITIES: TOASTS, HTML ESCAPING, IST CLOCK
+         ======================================================================= */
+      function showToast(title, message, variant) {
+        try {
+          const container = document.getElementById('toast-container');
+          if (!container) return;
+          const el = document.createElement('div');
+          const cls = variant === 'pink' ? 'toast-pink' : variant === 'emerald' ? 'toast-emerald' : 'toast-blue';
+          el.className = 'toast ' + cls;
+          el.innerHTML =
+            '<div style="font-size:12.5px;font-weight:700;color:#FFFFFF;">' + escapeHtml(title) + '</div>' +
+            '<div style="font-size:11.5px;color:#A1A1AA;margin-top:3px;line-height:1.4;">' + escapeHtml(message) + '</div>';
+          container.appendChild(el);
+          setTimeout(function () {
+            el.style.opacity = '0';
+            el.style.transition = 'opacity 200ms ease';
+            setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 220);
+          }, 3600);
+        } catch (e) {
+          console.error('Toast error:', e);
+        }
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function getISTTimeString() {
+        try {
+          return new Date().toLocaleTimeString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+        } catch (e) {
+          return new Date().toTimeString().slice(0, 8);
+        }
+      }
+
+      function updateClock() {
+        const t = getISTTimeString() + ' IST';
+        const clockEl = document.getElementById('ist-clock');
+        const dateEl = document.getElementById('ist-date');
+        const fsTimeEl = document.getElementById('fs-ist-time');
+
+        if (clockEl) clockEl.textContent = t;
+        if (fsTimeEl) fsTimeEl.textContent = t;
+
+        if (dateEl) {
+          try {
+            dateEl.textContent = new Date().toLocaleDateString('en-IN', {
+              timeZone: 'Asia/Kolkata',
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            }).toUpperCase();
+          } catch (e) {
+            dateEl.textContent = 'BENGALURU GRID';
+          }
+        }
+      }
+
+      /* =======================================================================
+         NODE 01 FULL SCREEN TACTICAL OVERLAY CONTROLLER
+         ======================================================================= */
+      function openNode1FullScreen() {
+        const overlay = document.getElementById('node1-fullscreen-overlay');
+        if (!overlay) return;
+
+        // Close inspector if open so fullscreen takes clean priority
+        if (state.inspectorNodeId) closeInspectorModal();
+
+        state.fullscreenOpen = true;
+        state.fullscreenHudHidden = false;
+        overlay.classList.remove('hud-hidden');
+        overlay.classList.add('open');
+
+        syncFullScreenHUD();
+        applyNode1MediaState();
+
+        // Request native browser fullscreen with graceful CSS fallback if blocked in iframe
+        try {
+          const req = overlay.requestFullscreen || overlay.webkitRequestFullscreen || overlay.msRequestFullscreen;
+          if (req && !document.fullscreenElement) {
+            const p = req.call(overlay);
+            if (p && typeof p.catch === 'function') {
+              p.catch(function () {
+                // Graceful fallback: fixed full-viewport CSS overlay remains active
+              });
+            }
+          }
+        } catch (e) {
+          // Fallback to fixed full-viewport CSS
+        }
+      }
+
+      function closeNode1FullScreen() {
+        const overlay = document.getElementById('node1-fullscreen-overlay');
+        if (!overlay) return;
+
+        state.fullscreenOpen = false;
+        overlay.classList.remove('open');
+
+        const fsMjpeg = document.getElementById('fs-node1-mjpeg');
+        const fsWebcam = document.getElementById('fs-node1-webcam');
+        if (fsMjpeg) { fsMjpeg.removeAttribute('src'); fsMjpeg.classList.add('hidden'); }
+        if (fsWebcam) { fsWebcam.srcObject = null; fsWebcam.classList.add('hidden'); }
+
+        try {
+          if (document.fullscreenElement) {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (exit) {
+              const p = exit.call(document);
+              if (p && typeof p.catch === 'function') p.catch(function () {});
+            }
+          }
+        } catch (e) {}
+      }
+
+      function toggleFullScreenHUD() {
+        const overlay = document.getElementById('node1-fullscreen-overlay');
+        const btn = document.getElementById('fs-toggle-hud-btn');
+        if (!overlay) return;
+        state.fullscreenHudHidden = !state.fullscreenHudHidden;
+        overlay.classList.toggle('hud-hidden', state.fullscreenHudHidden);
+        if (btn) btn.textContent = state.fullscreenHudHidden ? 'Show HUD' : 'Hide HUD';
+      }
+
+      function syncFullScreenHUD() {
+        const n = state.nodes[0];
+        if (!n) return;
+
+        const srcBadge = document.getElementById('fs-source-badge');
+        const gpsEl = document.getElementById('fs-gps-val');
+        const fpsEl = document.getElementById('fs-fps-val');
+        const tempEl = document.getElementById('fs-temp-val');
+        const battEl = document.getElementById('fs-batt-val');
+        const detEl = document.getElementById('fs-det-val');
+
+        if (srcBadge) {
+          if (state.node1Link.connected && !state.webcamActive) {
+            srcBadge.textContent = 'RPi 5 Hardware';
+            srcBadge.className = 'pill pill-emerald';
+          } else if (state.webcamActive) {
+            srcBadge.textContent = 'Local Webcam';
+            srcBadge.className = 'pill pill-pink';
+          } else {
+            srcBadge.textContent = 'Live Optical';
+            srcBadge.className = 'pill pill-blue';
+          }
+        }
+
+        if (gpsEl) gpsEl.textContent = n.lat.toFixed(5) + '° N, ' + n.lng.toFixed(5) + '° E';
+        if (fpsEl) fpsEl.textContent = n.fps.toFixed(1) + ' FPS';
+        if (tempEl) tempEl.textContent = n.npuTemp.toFixed(1) + '°C';
+        if (battEl) battEl.textContent = n.battery + '%';
+        if (detEl) detEl.textContent = n.detectionsCount + (n.detectionsCount === 1 ? ' OBJECT' : ' OBJECTS');
+      }
+
+      /* =======================================================================
+         NAVIGATION & SIDEBAR CONTROLS
+         ======================================================================= */
+      function switchView(viewId) {
+        if (!viewMeta[viewId]) return;
+        state.currentView = viewId;
+
+        document.querySelectorAll('.view-section').forEach(function (sec) {
+          sec.classList.toggle('active', sec.id === 'view-' + viewId);
+        });
+
+        document.querySelectorAll('.nav-btn').forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-view') === viewId);
+        });
+
+        const titleEl = document.getElementById('topbar-title');
+        const subEl = document.getElementById('topbar-subtitle');
+        if (titleEl) titleEl.textContent = viewMeta[viewId].title;
+        if (subEl) subEl.textContent = viewMeta[viewId].subtitle;
+
+        toggleMobileSidebar(false);
+
+        const scrollEl = document.getElementById('main-scroll');
+        if (scrollEl) scrollEl.scrollTop = 0;
+
+        if (viewId === 'dashboard') {
+          setTimeout(function () {
+            if (cityMap) {
+              try { cityMap.invalidateSize(); } catch (e) {}
+            } else if (state.useFallbackMap) {
+              drawFallbackMap();
+            }
+          }, 80);
+        } else if (viewId === 'civicmatch') {
+          setTimeout(drawCivicMatchCanvases, 30);
+        } else if (viewId === 'dispatch') {
+          setTimeout(drawDispatchCanvases, 30);
+        }
+      }
+
+      function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        if (window.innerWidth <= 900) {
+          toggleMobileSidebar(!sidebar.classList.contains('mobile-open'));
+        } else {
+          state.sidebarCollapsed = !state.sidebarCollapsed;
+          sidebar.classList.toggle('collapsed', state.sidebarCollapsed);
+          setTimeout(function () {
+            if (cityMap) {
+              try { cityMap.invalidateSize(); } catch (e) {}
+            } else if (state.useFallbackMap) {
+              drawFallbackMap();
+            }
+          }, 240);
+        }
+      }
+
+      function toggleMobileSidebar(open) {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('mobile-backdrop');
+        if (sidebar) sidebar.classList.toggle('mobile-open', !!open);
+        if (backdrop) backdrop.classList.toggle('open', !!open);
+      }
+
+      function jumpToNode(nodeId) {
+        switchView('nodes');
+        setTimeout(function () {
+          const card = document.getElementById('node-card-' + nodeId);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.remove('flash-highlight');
+            void card.offsetWidth;
+            card.classList.add('flash-highlight');
+          }
+        }, 80);
+      }
+
+      /* =======================================================================
+         SIDEBAR FLEET LIST RENDERER
+         ======================================================================= */
+      function renderSidebarFleet() {
+        const list = document.getElementById('sidebar-fleet-list');
+        if (!list) return;
+        list.innerHTML = state.nodes.map(function (n) {
+          const dotCls = n.isPrimary ? 'dot-blue pulse' : 'dot-emerald pulse';
+          const tag = n.isPrimary && state.node1Link.connected ? 'RPi 5 • LINKED' : 'LIVE • ' + n.connection.split('•')[0].trim();
+          return (
+            '<button class="fleet-node-item" data-jump-node="' + n.id + '">' +
+              '<div class="fleet-node-left">' +
+                '<span class="dot ' + dotCls + '"></span>' +
+                '<div style="min-width:0;">' +
+                  '<div class="fleet-node-name">' + escapeHtml(n.name) + '</div>' +
+                  '<div class="fleet-node-sub">' + escapeHtml(tag) + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<span class="fleet-node-batt">' + n.battery + '%</span>' +
+            '</button>'
+          );
+        }).join('');
+
+        list.querySelectorAll('[data-jump-node]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            jumpToNode(btn.getAttribute('data-jump-node'));
+          });
+        });
+      }
+
+      /* =======================================================================
+         CENTRALIZED BENGALURU MAP (KEYLESS DARK OSM + OPTIONAL CARTO + FALLBACK)
+         ======================================================================= */
+      let cityMap = null;
+      let activeTileLayer = null;
+      let hotspotLayer = null;
+      let nodeLayer = null;
+      let leafletNodeMarkers = {};
+
+      function applyMapTileLayer() {
+        if (!cityMap || typeof L === 'undefined') return;
+        const viewportBox = document.getElementById('map-viewport-box');
+
+        if (activeTileLayer) {
+          try { cityMap.removeLayer(activeTileLayer); } catch (e) {}
+          activeTileLayer = null;
+        }
+
+        if (state.cartoKey && state.cartoKey.trim().length > 0) {
+          // Native CARTO Dark Matter tiles (no CSS inversion needed)
+          if (viewportBox) viewportBox.classList.remove('osm-dark-mode');
+          activeTileLayer = L.tileLayer(
+            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(state.cartoKey.trim()),
+            {
+              attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+              subdomains: 'abcd',
+              maxZoom: 19
+            }
+          ).addTo(cityMap);
+        } else {
+          // Keyless OpenStreetMap tiles with dark-mode CSS inversion
+          if (viewportBox) viewportBox.classList.add('osm-dark-mode');
+          activeTileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+          }).addTo(cityMap);
+        }
+      }
+
+      function initMap() {
+        try {
+          if (typeof L !== 'undefined') {
+            cityMap = L.map('city-map', {
+              center: [12.9560, 77.6180],
+              zoom: 12,
+              zoomControl: true
+            });
+
+            applyMapTileLayer();
+
+            hotspotLayer = L.layerGroup().addTo(cityMap);
+            nodeLayer = L.layerGroup().addTo(cityMap);
+            renderLeafletLayers();
+
+            // Attach ResizeObserver so Leaflet never renders grey/cropped after tab switch or sidebar collapse
+            const mapEl = document.getElementById('city-map');
+            if (mapEl && typeof ResizeObserver !== 'undefined') {
+              new ResizeObserver(function () {
+                if (cityMap) {
+                  try { cityMap.invalidateSize(); } catch (e) {}
+                }
+              }).observe(mapEl);
+            }
+            setTimeout(function () {
+              if (cityMap) {
+                try { cityMap.invalidateSize(); } catch (e) {}
+              }
+            }, 220);
+          } else {
+            renderFallbackMap();
+          }
+        } catch (err) {
+          console.warn('Leaflet unavailable, switching to interactive fallback map:', err);
+          renderFallbackMap();
+        }
+        renderHotspotWatchlist();
+      }
+
+      function setMapFilter(filter) {
+        state.mapFilter = filter;
+        document.querySelectorAll('.map-filter-btn').forEach(function (btn) {
+          const active = btn.getAttribute('data-filter') === filter;
+          btn.className = 'pill map-filter-btn ' + (active ? 'pill-blue' : 'pill-muted');
+        });
+        if (cityMap) {
+          renderLeafletLayers();
+        } else if (state.useFallbackMap) {
+          drawFallbackMap();
+        }
+      }
+
+      function renderLeafletLayers() {
+        if (!cityMap || !hotspotLayer || !nodeLayer) return;
+        hotspotLayer.clearLayers();
+        nodeLayer.clearLayers();
+        leafletNodeMarkers = {};
+
+        const filter = state.mapFilter;
+
+        if (filter !== 'nodes') {
+          state.hotspots.forEach(function (hs) {
+            if (filter !== 'all' && hs.primary !== filter) return;
+            const total = hs.garbage + hs.potholes + hs.hoardings;
+
+            L.circle([hs.lat, hs.lng], {
+              radius: hs.radius,
+              color: '#FF2A85',
+              weight: 1,
+              opacity: 0.75,
+              fillColor: '#FF2A85',
+              fillOpacity: 0.22
+            }).addTo(hotspotLayer);
+
+            const hsIcon = L.divIcon({
+              className: 'ce-hs-pin',
+              html: '<div style="position:relative;width:13px;height:13px;"><div class="ring-pink"></div><div style="width:13px;height:13px;border-radius:999px;background:#FF2A85;border:2px solid #000;"></div></div>',
+              iconSize: [13, 13],
+              iconAnchor: [6, 6]
+            });
+
+            const popup =
+              '<div style="min-width:185px;">' +
+                '<div style="font-family:monospace;font-size:10px;color:#FF2A85;font-weight:700;">' + hs.severity + ' HOTSPOT</div>' +
+                '<div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(hs.name) + '</div>' +
+                '<div style="margin-top:7px;font-family:monospace;font-size:10.5px;color:#D4D4D8;">Waste: ' + hs.garbage + ' • Potholes: ' + hs.potholes + ' • Ads: ' + hs.hoardings + '</div>' +
+                '<div style="margin-top:4px;font-size:10.5px;color:#A1A1AA;">Active Flags: <strong style="color:#FFF;">' + total + '</strong></div>' +
+              '</div>';
+
+            L.marker([hs.lat, hs.lng], { icon: hsIcon }).bindPopup(popup).addTo(hotspotLayer);
+          });
+        }
+
+        if (filter === 'all' || filter === 'nodes') {
+          state.nodes.forEach(function (n) {
+            const color = n.isPrimary ? '#00D2FF' : '#34D399';
+            const ring = n.isPrimary ? '<div class="ring-blue"></div>' : '';
+            const icon = L.divIcon({
+              className: 'ce-node-pin',
+              html: '<div style="position:relative;width:14px;height:14px;">' + ring + '<div style="width:14px;height:14px;border-radius:999px;background:' + color + ';border:2px solid #000;"></div></div>',
+              iconSize: [14, 14],
+              iconAnchor: [7, 7]
+            });
+
+            const popup =
+              '<div style="min-width:190px;">' +
+                '<div style="font-family:monospace;font-size:10px;color:' + color + ';font-weight:700;">● LIVE FLEET UNIT</div>' +
+                '<div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(n.name) + ' (' + n.id + ')</div>' +
+                '<div style="font-size:11px;color:#D4D4D8;margin-top:3px;">' + escapeHtml(n.vehicle) + '</div>' +
+                '<div style="font-family:monospace;font-size:10px;color:#A1A1AA;margin-top:5px;">GPS: ' + n.lat.toFixed(4) + ', ' + n.lng.toFixed(4) + '</div>' +
+                '<div style="font-family:monospace;font-size:10px;color:#00D2FF;margin-top:2px;">Battery: ' + n.battery + '% • ' + n.fps.toFixed(1) + ' FPS</div>' +
+              '</div>';
+
+            const marker = L.marker([n.lat, n.lng], { icon: icon }).bindPopup(popup).addTo(nodeLayer);
+            leafletNodeMarkers[n.id] = marker;
+          });
+        }
+      }
+
+      /* Interactive Offline Canvas Fallback Map of Bengaluru */
+      function renderFallbackMap() {
+        state.useFallbackMap = true;
+        const leafletEl = document.getElementById('city-map');
+        const canvas = document.getElementById('fallback-map-canvas');
+        if (leafletEl) leafletEl.style.display = 'none';
+        if (canvas) {
+          canvas.style.display = 'block';
+          drawFallbackMap();
+        }
+      }
+
+      function drawFallbackMap() {
+        const canvas = document.getElementById('fallback-map-canvas');
+        if (!canvas || !state.useFallbackMap) return;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+
+        ctx.fillStyle = '#050609';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1 * dpr;
+        for (let x = 0; x < w; x += 48 * dpr) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        for (let y = 0; y < h; y += 48 * dpr) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        }
+
+        ctx.strokeStyle = 'rgba(0,210,255,0.16)';
+        ctx.lineWidth = 2 * dpr;
+        ctx.beginPath();
+        ctx.ellipse(w * 0.5, h * 0.5, w * 0.34, h * 0.36, 0.15, 0, Math.PI * 2);
+        ctx.stroke();
+
+        function project(lat, lng) {
+          const minLat = 12.89, maxLat = 13.06;
+          const minLng = 77.54, maxLng = 77.78;
+          const px = ((lng - minLng) / (maxLng - minLng)) * (w * 0.84) + w * 0.08;
+          const py = (1 - (lat - minLat) / (maxLat - minLat)) * (h * 0.78) + h * 0.10;
+          return { x: px, y: py };
+        }
+
+        const filter = state.mapFilter;
+
+        if (filter !== 'nodes') {
+          state.hotspots.forEach(function (hs) {
+            if (filter !== 'all' && hs.primary !== filter) return;
+            const p = project(hs.lat, hs.lng);
+            ctx.fillStyle = 'rgba(255,42,133,0.18)';
+            ctx.beginPath(); ctx.arc(p.x, p.y, 20 * dpr, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#FF2A85';
+            ctx.beginPath(); ctx.arc(p.x, p.y, 5 * dpr, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#E4E4E7';
+            ctx.font = '600 ' + (9.5 * dpr) + 'px sans-serif';
+            ctx.fillText(hs.name, p.x + 8 * dpr, p.y + 3 * dpr);
+          });
+        }
+
+        if (filter === 'all' || filter === 'nodes') {
+          state.nodes.forEach(function (n) {
+            const p = project(n.lat, n.lng);
+            const col = n.isPrimary ? '#00D2FF' : '#34D399';
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 1.5 * dpr;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 11 * dpr, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = col;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 5 * dpr, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '700 ' + (9.5 * dpr) + 'px monospace';
+            ctx.fillText(n.id, p.x + 10 * dpr, p.y - 6 * dpr);
+          });
+        }
+
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.font = '600 ' + (10 * dpr) + 'px monospace';
+        ctx.fillText('BENGALURU TACTICAL GRID • VECTOR MODE', 14 * dpr, 22 * dpr);
+      }
+
+      function renderHotspotWatchlist() {
+        const el = document.getElementById('hotspot-watchlist');
+        if (!el) return;
+        el.innerHTML = state.hotspots.map(function (hs) {
+          const total = hs.garbage + hs.potholes + hs.hoardings;
+          return (
+            '<button class="oled-subcard hotspot-btn" data-hs-lat="' + hs.lat + '" data-hs-lng="' + hs.lng + '" data-hs-name="' + escapeHtml(hs.name) + '">' +
+              '<div style="min-width:0;">' +
+                '<div style="display:flex;align-items:center;gap:7px;">' +
+                  '<span class="dot dot-pink"></span>' +
+                  '<span style="font-size:12.5px;font-weight:600;color:#FFFFFF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(hs.name) + '</span>' +
+                '</div>' +
+                '<div class="mono" style="font-size:10px;color:var(--text-muted);margin-top:4px;">Waste ' + hs.garbage + ' • Potholes ' + hs.potholes + ' • Hoardings ' + hs.hoardings + '</div>' +
+              '</div>' +
+              '<span class="pill pill-pink">' + total + '</span>' +
+            '</button>'
+          );
+        }).join('');
+
+        el.querySelectorAll('.hotspot-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const lat = parseFloat(btn.getAttribute('data-hs-lat'));
+            const lng = parseFloat(btn.getAttribute('data-hs-lng'));
+            const name = btn.getAttribute('data-hs-name');
+            if (cityMap) {
+              cityMap.flyTo([lat, lng], 14, { duration: 0.65 });
+            } else {
+              showToast('Hotspot Focused', name + ' (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')', 'pink');
+            }
+          });
+        });
+      }
+
+      function focusNodeOnMap(nodeId) {
+        const node = state.nodes.find(function (n) { return n.id === nodeId; });
+        if (!node) return;
+        closeInspectorModal();
+        switchView('dashboard');
+        setMapFilter('all');
+        setTimeout(function () {
+          if (cityMap) {
+            cityMap.invalidateSize();
+            cityMap.flyTo([node.lat, node.lng], 14, { duration: 0.65 });
+            if (leafletNodeMarkers[nodeId]) {
+              setTimeout(function () { leafletNodeMarkers[nodeId].openPopup(); }, 600);
+            }
+          } else {
+            showToast(node.name + ' Located', 'GPS ' + node.lat.toFixed(4) + ', ' + node.lng.toFixed(4), 'blue');
+          }
+        }, 90);
+      }
+
+      /* =======================================================================
+         VIEW 2: LIVE FEED (HOTEL-LISTING HORIZONTAL CARDS FOR ALL 5 LIVE NODES)
+         ======================================================================= */
+      function renderLiveFeed() {
+        const list = document.getElementById('live-feed-list');
+        if (!list) return;
+
+        list.innerHTML = state.nodes.map(function (n) {
+          const edgeClass = n.isPrimary ? 'edge-blue' : 'edge-dual';
+          const primaryTag = n.isPrimary
+            ? (state.node1Link.connected ? 'RPI 5 HARDWARE LINKED' : 'PRIMARY ROVER • RPI 5')
+            : 'MUNICIPAL FLEET UNIT';
+
+          return (
+            '<article class="oled-card ' + edgeClass + ' feed-card">' +
+              '<div class="feed-media">' +
+                '<canvas id="feed-canvas-' + n.id + '"></canvas>' +
+                (n.isPrimary ? '<img id="node1-mjpeg" class="hidden" alt="Node 01 Live Hardware Stream" />' : '') +
+                (n.isPrimary ? '<video id="node1-webcam" class="hidden" autoplay playsinline muted></video>' : '') +
+                (n.isPrimary
+                  ? '<div id="node1-overlay-hud" class="feed-hud-overlay hidden">' +
+                      '<div style="display:flex;justify-content:space-between;">' +
+                        '<span class="pill pill-emerald" style="background:rgba(0,0,0,0.82);font-size:9.5px;"><span class="dot dot-emerald pulse"></span>LIVE HARDWARE FEED</span>' +
+                        '<span class="pill pill-blue" style="background:rgba(0,0,0,0.82);font-size:9.5px;">YOLOv8n</span>' +
+                      '</div>' +
+                      '<span class="mono" style="background:rgba(0,0,0,0.78);padding:3px 7px;border-radius:6px;font-size:9.5px;align-self:flex-start;color:#E4E4E7;">NODE-01 • HAILO-8L STREAM</span>' +
+                    '</div>'
+                  : '') +
+              '</div>' +
+
+              '<div class="feed-body">' +
+                '<div>' +
+                  '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;">' +
+                    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">' +
+                      '<h3 style="margin:0;font-size:17px;font-weight:800;">' + escapeHtml(n.name) + '</h3>' +
+                      '<span class="pill ' + (n.isPrimary ? 'pill-blue' : 'pill-muted') + '">' + primaryTag + '</span>' +
+                    '</div>' +
+                    '<span class="pill pill-emerald"><span class="dot dot-emerald pulse"></span>LIVE • ' + escapeHtml(n.connection) + '</span>' +
+                  '</div>' +
+
+                  '<div class="feed-stats-grid">' +
+                    '<div class="oled-subcard stat-cell">' +
+                      '<div class="label-xs">Assigned Vehicle</div>' +
+                      '<div class="stat-val">' + escapeHtml(n.vehicle) + '</div>' +
+                      '<div class="stat-sub">' + escapeHtml(n.route) + '</div>' +
+                    '</div>' +
+                    '<div class="oled-subcard stat-cell">' +
+                      '<div class="label-xs">Live GPS Coordinates</div>' +
+                      '<div id="feed-gps-' + n.id + '" class="stat-val mono tabular" style="color:var(--neon-blue);">' + n.lat.toFixed(5) + '° N, ' + n.lng.toFixed(5) + '° E</div>' +
+                      '<div class="stat-sub mono">Bengaluru Municipal Grid</div>' +
+                    '</div>' +
+                    '<div class="oled-subcard stat-cell">' +
+                      '<div class="label-xs">YOLOv8n Telemetry</div>' +
+                      '<div id="feed-fps-' + n.id + '" class="stat-val mono tabular">' + n.fps.toFixed(1) + ' FPS • ' + n.npuTemp.toFixed(1) + '°C</div>' +
+                      '<div class="stat-sub mono">Hailo-8L NPU Active</div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+
+                '<div class="card-footer-row">' +
+                  '<div class="mono" style="font-size:11px;color:var(--text-muted);">' + escapeHtml(n.hardware) + '</div>' +
+                  '<div class="btn-group">' +
+                    (n.isPrimary
+                      ? '<button class="btn btn-pink" data-action="fullscreen-node1">' +
+                          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+                          'Full Screen' +
+                        '</button>' +
+                        '<button class="btn btn-blue" data-action="config-api">' + (state.node1Link.connected ? 'RPi 5 Linked' : 'Configure API Link') + '</button>' +
+                        '<button id="webcam-btn" class="btn btn-ghost" data-action="toggle-webcam">' + (state.webcamActive ? 'Stop Local Webcam' : 'Use Local Webcam') + '</button>'
+                      : '') +
+                    '<button class="btn btn-ghost" data-action="locate-node" data-node="' + n.id + '">Locate on Map</button>' +
+                    '<button class="btn btn-blue" data-action="inspect-node" data-node="' + n.id + '">Inspect Stream</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</article>'
+          );
+        }).join('');
+
+        list.querySelectorAll('[data-action="fullscreen-node1"]').forEach(function (b) {
+          b.addEventListener('click', openNode1FullScreen);
+        });
+        list.querySelectorAll('[data-action="config-api"]').forEach(function (b) {
+          b.addEventListener('click', openConnectorModal);
+        });
+        list.querySelectorAll('[data-action="toggle-webcam"]').forEach(function (b) {
+          b.addEventListener('click', toggleLocalWebcam);
+        });
+        list.querySelectorAll('[data-action="locate-node"]').forEach(function (b) {
+          b.addEventListener('click', function () { focusNodeOnMap(b.getAttribute('data-node')); });
+        });
+        list.querySelectorAll('[data-action="inspect-node"]').forEach(function (b) {
+          b.addEventListener('click', function () { openInspectorModal(b.getAttribute('data-node')); });
+        });
+
+        applyNode1MediaState();
+      }
+
+      /* Local Webcam Toggle for Node 01 */
+      async function toggleLocalWebcam() {
+        if (state.webcamActive) {
+          stopLocalWebcam(true);
+          return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showToast('Webcam Unavailable', 'Browser camera access is unavailable in this environment.', 'pink');
+          return;
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+          state.webcamStream = stream;
+          state.webcamActive = true;
+          applyNode1MediaState();
+          syncFullScreenHUD();
+          showToast('Local Webcam Active', 'Node 01 is now streaming your local camera feed.', 'emerald');
+        } catch (err) {
+          showToast('Camera Permission Denied', 'Allow camera access in your browser to stream locally.', 'pink');
+        }
+      }
+
+      function stopLocalWebcam(notify) {
+        if (state.webcamStream) {
+          state.webcamStream.getTracks().forEach(function (t) { t.stop(); });
+          state.webcamStream = null;
+        }
+        state.webcamActive = false;
+        applyNode1MediaState();
+        syncFullScreenHUD();
+        if (notify) showToast('Local Webcam Stopped', 'Node 01 returned to onboard optical stream.', 'blue');
+      }
+
+      function applyNode1MediaState() {
+        const mjpeg = document.getElementById('node1-mjpeg');
+        const webcam = document.getElementById('node1-webcam');
+        const hud = document.getElementById('node1-overlay-hud');
+        const btn = document.getElementById('webcam-btn');
+
+        const fsMjpeg = document.getElementById('fs-node1-mjpeg');
+        const fsWebcam = document.getElementById('fs-node1-webcam');
+
+        if (btn) {
+          btn.textContent = state.webcamActive ? 'Stop Local Webcam' : 'Use Local Webcam';
+          btn.className = 'btn ' + (state.webcamActive ? 'btn-emerald' : 'btn-ghost');
+        }
+
+        if (state.node1Link.connected && state.node1Link.token && !state.webcamActive) {
+          const url = state.node1Link.url + '/video_feed?token=' + encodeURIComponent(state.node1Link.token);
+          if (mjpeg) {
+            mjpeg.onerror = function () {
+              mjpeg.classList.add('hidden');
+              if (hud) hud.classList.add('hidden');
+            };
+            mjpeg.src = url;
+            mjpeg.classList.remove('hidden');
+          }
+          if (webcam) { webcam.srcObject = null; webcam.classList.add('hidden'); }
+          if (hud) hud.classList.remove('hidden');
+
+          if (state.fullscreenOpen) {
+            if (fsMjpeg) {
+              fsMjpeg.onerror = function () { fsMjpeg.classList.add('hidden'); };
+              fsMjpeg.src = url;
+              fsMjpeg.classList.remove('hidden');
+            }
+            if (fsWebcam) { fsWebcam.srcObject = null; fsWebcam.classList.add('hidden'); }
+          }
+        } else if (state.webcamActive && state.webcamStream) {
+          if (mjpeg) { mjpeg.removeAttribute('src'); mjpeg.classList.add('hidden'); }
+          if (webcam) { webcam.srcObject = state.webcamStream; webcam.classList.remove('hidden'); }
+          if (hud) hud.classList.remove('hidden');
+
+          if (state.fullscreenOpen) {
+            if (fsMjpeg) { fsMjpeg.removeAttribute('src'); fsMjpeg.classList.add('hidden'); }
+            if (fsWebcam) { fsWebcam.srcObject = state.webcamStream; fsWebcam.classList.remove('hidden'); }
+          }
+        } else {
+          if (mjpeg) { mjpeg.removeAttribute('src'); mjpeg.classList.add('hidden'); }
+          if (webcam) { webcam.srcObject = null; webcam.classList.add('hidden'); }
+          if (hud) hud.classList.add('hidden');
+
+          if (fsMjpeg) { fsMjpeg.removeAttribute('src'); fsMjpeg.classList.add('hidden'); }
+          if (fsWebcam) { fsWebcam.srcObject = null; fsWebcam.classList.add('hidden'); }
+        }
+      }
+
+      /* =======================================================================
+         VIEW 3: CivicMATCH (AI INFERENCE & ACTIVE LEARNING ENGINE)
+         ======================================================================= */
+      function renderCivicMatch() {
+        const grid = document.getElementById('civicmatch-cards-grid');
+        const queue = state.civicMatchQueue;
+
+        const badge = document.getElementById('nav-badge-civicmatch');
+        const pendingEl = document.getElementById('cm-pending-count');
+        const revEl = document.getElementById('cm-reviewed-count');
+        const mapVal = document.getElementById('cm-map-val');
+        const mapBar = document.getElementById('cm-map-bar');
+
+        if (badge) badge.textContent = queue.length;
+        if (pendingEl) pendingEl.textContent = queue.length;
+        if (revEl) revEl.textContent = state.civicMatchStats.reviewedCount;
+        if (mapVal) mapVal.textContent = state.civicMatchStats.mapAccuracy.toFixed(1) + '%';
+        if (mapBar) {
+          const pct = Math.min(100, Math.max(12, ((state.civicMatchStats.mapAccuracy - 88) / 7) * 100));
+          mapBar.style.width = pct + '%';
+        }
+
+        if (!grid) return;
+
+        if (queue.length === 0) {
+          grid.innerHTML =
+            '<div class="oled-card edge-blue" style="grid-column:1 / -1;padding:36px 20px;text-align:center;">' +
+              '<span class="pill pill-emerald">QUEUE CLEARED</span>' +
+              '<h3 style="margin:12px 0 6px;font-size:18px;font-weight:800;">All CivicMATCH Captures Reviewed</h3>' +
+              '<p style="margin:0 auto;max-width:440px;font-size:13px;color:var(--text-secondary);">Operator labels have been synced to the YOLOv8n active learning pipeline for Hailo-8L optimization.</p>' +
+              '<button id="reload-cm-btn" class="btn btn-blue" style="margin-top:16px;">Pull Next Live Capture Batch</button>' +
+            '</div>';
+          const reloadBtn = document.getElementById('reload-cm-btn');
+          if (reloadBtn) reloadBtn.addEventListener('click', reloadCivicMatchBatch);
+          return;
+        }
+
+        grid.innerHTML = queue.map(function (item) {
+          return (
+            '<article class="oled-card edge-pink inference-card">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                  '<span class="pill pill-pink">' + escapeHtml(item.id) + '</span>' +
+                  '<span class="mono" style="font-size:11px;color:var(--text-secondary);">' + escapeHtml(item.node) + ' • ' + escapeHtml(item.location) + '</span>' +
+                '</div>' +
+                '<span class="pill pill-pink">' + item.confidence + '% CONF</span>' +
+              '</div>' +
+
+              '<div class="snapshot-box">' +
+                '<canvas id="cm-snap-' + item.id + '"></canvas>' +
+              '</div>' +
+
+              '<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">' +
+                '<strong style="color:#FFFFFF;">Predicted: ' + escapeHtml(item.predicted) + '</strong> — ' + escapeHtml(item.note) +
+              '</div>' +
+
+              '<div class="btn-group">' +
+                '<button class="btn btn-blue" data-cm-action="confirm" data-cm-id="' + item.id + '">Confirm Detection</button>' +
+                '<button class="btn btn-ghost" data-cm-action="false" data-cm-id="' + item.id + '">False Positive</button>' +
+              '</div>' +
+
+              '<div class="reclass-row">' +
+                '<select id="reclass-sel-' + item.id + '" class="oled-select" style="flex:1;">' +
+                  '<option value="Garbage"' + (item.predicted === 'Garbage' ? ' selected' : '') + '>Garbage</option>' +
+                  '<option value="Pothole"' + (item.predicted === 'Pothole' ? ' selected' : '') + '>Pothole</option>' +
+                  '<option value="Illegal Hoarding"' + (item.predicted === 'Illegal Hoarding' ? ' selected' : '') + '>Illegal Hoarding</option>' +
+                '</select>' +
+                '<button class="btn btn-pink" data-cm-action="reclassify" data-cm-id="' + item.id + '">Reclassify</button>' +
+              '</div>' +
+            '</article>'
+          );
+        }).join('');
+
+        grid.querySelectorAll('[data-cm-action]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            handleCivicMatchAction(btn.getAttribute('data-cm-id'), btn.getAttribute('data-cm-action'));
+          });
+        });
+
+        setTimeout(drawCivicMatchCanvases, 25);
+      }
+
+      function drawCivicMatchCanvases() {
+        state.civicMatchQueue.forEach(function (item) {
+          const canvas = document.getElementById('cm-snap-' + item.id);
+          if (canvas) {
+            renderStaticScene(canvas, item.scene, item.predicted.toUpperCase() + '? ' + item.confidence + '%', '#FF2A85', true);
+          }
+        });
+      }
+
+      function handleCivicMatchAction(id, action) {
+        const idx = state.civicMatchQueue.findIndex(function (x) { return x.id === id; });
+        if (idx === -1) return;
+        const item = state.civicMatchQueue.splice(idx, 1)[0];
+
+        let logText = '';
+        if (action === 'confirm') {
+          logText = 'Confirmed as <strong style="color:var(--neon-blue);">' + escapeHtml(item.predicted) + '</strong> (' + item.confidence + '% → Verified)';
+          showToast('Detection Confirmed', item.id + ' added to CivicMATCH verified dataset.', 'blue');
+        } else if (action === 'false') {
+          logText = 'Flagged as <strong style="color:#E4E4E7;">False Positive</strong> (Hard-negative sample)';
+          showToast('False Positive Logged', item.id + ' excluded to sharpen precision.', 'emerald');
+        } else {
+          const sel = document.getElementById('reclass-sel-' + item.id);
+          const newLabel = sel ? sel.value : 'Garbage';
+          logText = 'Reclassified ' + escapeHtml(item.predicted) + ' → <strong style="color:var(--neon-pink);">' + escapeHtml(newLabel) + '</strong>';
+          showToast('Detection Reclassified', item.id + ' relabeled as ' + newLabel + '.', 'pink');
+        }
+
+        state.civicMatchStats.reviewedCount += 1;
+        state.civicMatchStats.mapAccuracy = Math.min(96.5, state.civicMatchStats.mapAccuracy + 0.3);
+
+        const logEl = document.getElementById('civicmatch-log');
+        if (logEl) {
+          const row = document.createElement('div');
+          row.className = 'oled-subcard log-item';
+          row.innerHTML = '<span>[' + getISTTimeString().slice(0, 5) + ' IST] Frame #' + escapeHtml(item.id) + ' ' + logText + '</span><span style="color:var(--text-muted);">' + escapeHtml(item.node) + '</span>';
+          logEl.prepend(row);
+        }
+
+        renderCivicMatch();
+      }
+
+      function reloadCivicMatchBatch() {
+        state.civicMatchQueue = [
+          {
+            id: 'CM-9110',
+            predicted: 'Garbage',
+            confidence: 52,
+            node: 'NODE-01',
+            location: 'Ejipura Main Rd',
+            gps: '12.9412, 77.6219',
+            time: getISTTimeString() + ' IST',
+            note: 'Scattered plastic debris near bus stop curb.',
+            scene: 'garbage-a'
+          },
+          {
+            id: 'CM-9111',
+            predicted: 'Illegal Hoarding',
+            confidence: 59,
+            node: 'NODE-02',
+            location: 'CMH Road, Indiranagar',
+            gps: '12.9781, 77.6384',
+            time: getISTTimeString() + ' IST',
+            note: 'Vertical event poster strapped across median railing.',
+            scene: 'hoarding-a'
+          }
+        ];
+        showToast('New Captures Loaded', 'Pulled 2 fresh low-confidence frames from fleet buffer.', 'blue');
+        renderCivicMatch();
+      }
+
+      /* =======================================================================
+         VIEW 4: INCIDENT DISPATCH (MULTI-NODE VERIFICATION & TEAM DEPLOYMENT)
+         ======================================================================= */
+      function renderIncidentDispatch() {
+        const list = document.getElementById('dispatch-cards-list');
+        const openCount = state.incidents.filter(function (i) { return i.status === 'READY'; }).length;
+
+        const navBadge = document.getElementById('nav-badge-dispatch');
+        const openPill = document.getElementById('dispatch-open-pill');
+        if (navBadge) navBadge.textContent = openCount;
+        if (openPill) openPill.textContent = openCount + ' READY FOR DISPATCH';
+
+        if (!list) return;
+
+        const teams = ['Housekeeping', 'Municipal Police', 'PWD Road Crew', 'Hoarding Enforcement'];
+
+        list.innerHTML = state.incidents.map(function (inc) {
+          const dispatched = inc.status === 'DISPATCHED';
+          const statusPill = dispatched
+            ? '<span class="pill pill-emerald">DISPATCHED • ' + escapeHtml(inc.dispatchedTeam) + '</span>'
+            : '<span class="pill pill-pink">READY FOR DISPATCH</span>';
+
+          const capturesHtml = inc.captures.map(function (cap, idx) {
+            return (
+              '<div class="oled-subcard capture-tile">' +
+                '<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;">' +
+                  '<span style="color:' + (idx === 0 ? 'var(--neon-blue)' : 'var(--emerald)') + ';font-weight:700;">' + escapeHtml(cap.node) + '</span>' +
+                  '<span style="color:var(--text-muted);">' + escapeHtml(cap.time) + '</span>' +
+                '</div>' +
+                '<div class="snapshot-box">' +
+                  '<canvas id="disp-cap-' + inc.id + '-' + idx + '"></canvas>' +
+                '</div>' +
+                '<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">' +
+                  '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(cap.vehicle) + '</span>' +
+                  '<span style="color:#FFFFFF;flex-shrink:0;">CONF ' + escapeHtml(cap.conf) + '</span>' +
+                '</div>' +
+              '</div>'
+            );
+          }).join('');
+
+          const teamBtns = teams.map(function (team) {
+            const selected = inc.dispatchedTeam === team;
+            return '<button class="btn ' + (selected ? 'btn-emerald' : 'btn-ghost') + '" data-disp-id="' + inc.id + '" data-disp-team="' + team + '">' + team + '</button>';
+          }).join('');
+
+          return (
+            '<article class="oled-card ' + (dispatched ? 'edge-blue' : 'edge-pink') + ' dispatch-card">' +
+              '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+                '<div>' +
+                  '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">' +
+                    '<span class="mono" style="font-size:12px;font-weight:700;color:var(--neon-blue);">' + escapeHtml(inc.id) + '</span>' +
+                    '<span class="pill pill-muted">' + escapeHtml(inc.category) + '</span>' +
+                    '<span class="pill pill-blue">' + inc.matchScore + '% Spatial Overlap</span>' +
+                  '</div>' +
+                  '<h3 style="margin:8px 0 4px;font-size:17px;font-weight:800;">' + escapeHtml(inc.title) + '</h3>' +
+                  '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text-secondary);">' +
+                    '<span>' + escapeHtml(inc.location) + '</span>' +
+                    '<span class="mono" style="color:var(--neon-blue);">' + escapeHtml(inc.gps) + '</span>' +
+                  '</div>' +
+                '</div>' +
+                statusPill +
+              '</div>' +
+
+              '<div class="captures-grid">' + capturesHtml + '</div>' +
+
+              '<div class="card-footer-row">' +
+                '<span class="label-xs">Deploy Field Team:</span>' +
+                '<div class="btn-group">' + teamBtns + '</div>' +
+              '</div>' +
+            '</article>'
+          );
+        }).join('');
+
+        list.querySelectorAll('[data-disp-id]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            deployTeam(btn.getAttribute('data-disp-id'), btn.getAttribute('data-disp-team'));
+          });
+        });
+
+        renderDispatchLog();
+        setTimeout(drawDispatchCanvases, 25);
+      }
+
+      function drawDispatchCanvases() {
+        state.incidents.forEach(function (inc) {
+          inc.captures.forEach(function (cap, idx) {
+            const canvas = document.getElementById('disp-cap-' + inc.id + '-' + idx);
+            if (canvas) {
+              const color = idx === 0 ? '#00D2FF' : idx === 1 ? '#FF2A85' : '#34D399';
+              renderStaticScene(canvas, cap.scene, cap.node + ' • ' + cap.conf, color, false);
+            }
+          });
+        });
+      }
+
+      function deployTeam(incId, team) {
+        const inc = state.incidents.find(function (i) { return i.id === incId; });
+        if (!inc) return;
+        const firstDispatch = inc.status !== 'DISPATCHED';
+        inc.status = 'DISPATCHED';
+        inc.dispatchedTeam = team;
+
+        if (firstDispatch) {
+          state.metrics.casesInProgress += 1;
+          const el = document.getElementById('m-inprogress');
+          if (el) el.textContent = state.metrics.casesInProgress;
+        }
+
+        state.dispatchLog.unshift({
+          time: getISTTimeString().slice(0, 5) + ' IST',
+          incidentId: inc.id,
+          team: team,
+          location: inc.location,
+          status: 'DISPATCHED'
+        });
+
+        showToast('Team Dispatched', team + ' deployed to ' + inc.location + '. Dashboard Cases In Progress incremented.', 'emerald');
+        renderIncidentDispatch();
+      }
+
+      function renderDispatchLog() {
+        const list = document.getElementById('dispatch-log-list');
+        const pill = document.getElementById('dispatch-log-count');
+        if (pill) pill.textContent = state.dispatchLog.length + ' LOGGED';
+        if (!list) return;
+        list.innerHTML = state.dispatchLog.map(function (entry) {
+          return (
+            '<div class="oled-subcard log-item">' +
+              '<span><span style="color:var(--text-muted);">[' + escapeHtml(entry.time) + ']</span> <strong style="color:var(--neon-blue);">' + escapeHtml(entry.incidentId) + '</strong> • <strong style="color:#FFFFFF;">' + escapeHtml(entry.team) + '</strong> → ' + escapeHtml(entry.location) + '</span>' +
+              '<span class="pill pill-emerald" style="padding:2px 8px;font-size:9.5px;">' + escapeHtml(entry.status) + '</span>' +
+            '</div>'
+          );
+        }).join('');
+      }
+
+      /* =======================================================================
+         VIEW 5: NODES (5 LIVE STRUCTURED HARDWARE CARDS)
+         ======================================================================= */
+      function renderNodesGrid() {
+        const grid = document.getElementById('nodes-grid');
+        if (!grid) return;
+
+        grid.innerHTML = state.nodes.map(function (n) {
+          const battCol = n.battery > 70 ? 'var(--neon-blue)' : n.battery > 45 ? 'var(--amber)' : 'var(--neon-pink)';
+          const statusBadge = n.rebooting
+            ? '<span class="pill pill-pink">REBOOTING...</span>'
+            : '<span class="pill pill-emerald"><span class="dot dot-emerald pulse"></span>LIVE</span>';
+
+          return (
+            '<article id="node-card-' + n.id + '" class="oled-card ' + (n.isPrimary ? 'edge-blue' : 'edge-dual') + ' node-card">' +
+              '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+                '<div>' +
+                  '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<h3 style="margin:0;font-size:17px;font-weight:800;">' + escapeHtml(n.name) + '</h3>' +
+                    '<span class="pill ' + (n.isPrimary ? 'pill-blue' : 'pill-muted') + '">' + (n.isPrimary ? 'PRIMARY ROVER' : 'ACTIVE FLEET') + '</span>' +
+                  '</div>' +
+                  '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + escapeHtml(n.hardware) + '</div>' +
+                '</div>' +
+                statusBadge +
+              '</div>' +
+
+              '<div class="oled-subcard" style="padding:12px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                  '<span class="label-xs">Battery Telemetry</span>' +
+                  '<span id="node-batt-' + n.id + '" class="mono tabular" style="font-size:12px;font-weight:700;">' + n.battery + '% <span style="color:var(--text-muted);font-weight:400;">• ' + escapeHtml(n.voltage) + '</span></span>' +
+                '</div>' +
+                '<div class="progress-track">' +
+                  '<div id="node-batt-bar-' + n.id + '" style="height:100%;width:' + n.battery + '%;background:' + battCol + ';border-radius:999px;transition:width 400ms ease;"></div>' +
+                '</div>' +
+              '</div>' +
+
+              '<div class="node-fields-grid">' +
+                '<div class="oled-subcard stat-cell"><div class="label-xs">Shift Start Time</div><div class="stat-val mono">' + escapeHtml(n.startTime) + '</div></div>' +
+                '<div class="oled-subcard stat-cell"><div class="label-xs">Shift End Time</div><div class="stat-val mono">' + escapeHtml(n.endTime) + '</div></div>' +
+                '<div class="oled-subcard stat-cell"><div class="label-xs">Session Uptime</div><div class="stat-val mono">' + escapeHtml(n.uptime) + '</div></div>' +
+                '<div class="oled-subcard stat-cell"><div class="label-xs">Signal Strength</div><div class="stat-val mono">' + escapeHtml(n.connection) + ' (' + escapeHtml(n.signalDbm) + ')</div></div>' +
+                '<div class="oled-subcard stat-cell"><div class="label-xs">Assigned Vehicle</div><div class="stat-val">' + escapeHtml(n.vehicle) + '</div></div>' +
+                '<div class="oled-subcard stat-cell"><div class="label-xs">NPU Temp / FPS</div><div id="node-temp-' + n.id + '" class="stat-val mono tabular" style="color:var(--neon-blue);">' + n.npuTemp.toFixed(1) + '°C • ' + n.fps.toFixed(1) + ' FPS</div></div>' +
+              '</div>' +
+
+              '<div class="card-footer-row">' +
+                '<span id="node-gps-' + n.id + '" class="mono tabular" style="font-size:11px;color:var(--text-muted);">GPS ' + n.lat.toFixed(4) + ', ' + n.lng.toFixed(4) + '</span>' +
+                '<div class="btn-group">' +
+                  (n.isPrimary
+                    ? '<button class="btn btn-pink" data-node-action="fullscreen">' +
+                        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+                        'Full Screen Feed' +
+                      '</button>' +
+                      '<button class="btn btn-blue" data-node-action="config">Configure API Link</button>'
+                    : '') +
+                  '<button class="btn btn-blue" data-node-action="ping" data-node-id="' + n.id + '">Ping</button>' +
+                  '<button class="btn btn-ghost" data-node-action="reboot" data-node-id="' + n.id + '"' + (n.rebooting ? ' disabled' : '') + '>' + (n.rebooting ? 'Rebooting...' : 'Reboot') + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</article>'
+          );
+        }).join('');
+
+        grid.querySelectorAll('[data-node-action="fullscreen"]').forEach(function (b) {
+          b.addEventListener('click', openNode1FullScreen);
+        });
+        grid.querySelectorAll('[data-node-action="config"]').forEach(function (b) {
+          b.addEventListener('click', openConnectorModal);
+        });
+        grid.querySelectorAll('[data-node-action="ping"]').forEach(function (b) {
+          b.addEventListener('click', function () { pingNode(b.getAttribute('data-node-id')); });
+        });
+        grid.querySelectorAll('[data-node-action="reboot"]').forEach(function (b) {
+          b.addEventListener('click', function () { rebootNode(b.getAttribute('data-node-id')); });
+        });
+      }
+
+      function pingNode(nodeId) {
+        const node = state.nodes.find(function (n) { return n.id === nodeId; });
+        if (!node) return;
+        const ms = node.isPrimary ? Math.floor(13 + Math.random() * 6) : Math.floor(18 + Math.random() * 14);
+        showToast(node.name + ' PONG (' + ms + ' ms)', node.id + ' responded cleanly over ' + node.connection + '.', 'emerald');
+      }
+
+      function rebootNode(nodeId) {
+        const node = state.nodes.find(function (n) { return n.id === nodeId; });
+        if (!node || node.rebooting) return;
+        node.rebooting = true;
+        renderNodesGrid();
+        showToast('Rebooting ' + node.name, 'Restarting Hailo-8L inference daemon on ' + node.id + '...', 'pink');
+        setTimeout(function () {
+          node.rebooting = false;
+          renderNodesGrid();
+          showToast(node.name + ' Back Online', node.id + ' telemetry and YOLOv8n pipeline restored.', 'emerald');
+        }, 2200);
+      }
+
+      /* =======================================================================
+         NODE 01 REAL HARDWARE CONNECTOR & MAP SETTINGS MODAL
+         ======================================================================= */
+      function openConnectorModal() {
+        // If native browser fullscreen is active, exit native fullscreen so modal renders cleanly above
+        if (document.fullscreenElement) {
+          try {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (exit) exit.call(document);
+          } catch (e) {}
+        }
+
+        const modal = document.getElementById('connector-modal');
+        if (!modal) return;
+        const urlIn = document.getElementById('pi-url-input');
+        const keyIn = document.getElementById('pi-key-input');
+        const cartoIn = document.getElementById('carto-key-input');
+        if (urlIn) urlIn.value = state.node1Link.url;
+        if (keyIn) keyIn.value = state.node1Link.apiKey;
+        if (cartoIn) cartoIn.value = state.cartoKey;
+        hideConnMsg();
+        syncConnectorUI();
+        modal.classList.add('open');
+      }
+
+      function closeConnectorModal() {
+        const modal = document.getElementById('connector-modal');
+        if (modal) modal.classList.remove('open');
+      }
+
+      function showConnMsg(text, type) {
+        const el = document.getElementById('conn-inline-msg');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'inline-msg show ' + (type === 'success' ? 'success' : 'error');
+      }
+
+      function hideConnMsg() {
+        const el = document.getElementById('conn-inline-msg');
+        if (el) el.className = 'inline-msg';
+      }
+
+      function syncConnectorUI() {
+        const stText = document.getElementById('conn-status-text');
+        const stPill = document.getElementById('conn-status-pill');
+        const topBtn = document.getElementById('topbar-node1-btn');
+        const topLbl = document.getElementById('topbar-node1-label');
+        const topDot = document.getElementById('topbar-node1-dot');
+
+        if (state.node1Link.connected) {
+          if (stText) stText.textContent = 'CONNECTED • ' + state.node1Link.url;
+          if (stPill) { stPill.textContent = 'LIVE LINK'; stPill.className = 'pill pill-emerald'; }
+          if (topBtn) topBtn.className = 'pill pill-emerald';
+          if (topLbl) topLbl.textContent = 'NODE 01 LINKED';
+          if (topDot) topDot.className = 'dot dot-emerald pulse';
+        } else {
+          if (stText) stText.textContent = 'LIVE OPTICAL FEED • READY FOR RPI 5 BRIDGE';
+          if (stPill) { stPill.textContent = 'STANDBY'; stPill.className = 'pill pill-blue'; }
+          if (topBtn) topBtn.className = 'pill pill-blue';
+          if (topLbl) topLbl.textContent = 'NODE 01 LINK';
+          if (topDot) topDot.className = 'dot dot-blue pulse';
+        }
+      }
+
+      function applyCartoMapKey() {
+        const cartoIn = document.getElementById('carto-key-input');
+        state.cartoKey = cartoIn ? cartoIn.value.trim() : '';
+        try {
+          if (state.cartoKey) {
+            localStorage.setItem('civiceye_carto_key', state.cartoKey);
+          } else {
+            localStorage.removeItem('civiceye_carto_key');
+          }
+        } catch (e) {}
+        applyMapTileLayer();
+        showConnMsg(
+          state.cartoKey
+            ? 'Switched map to CARTO Dark Matter tiles.'
+            : 'Switched map to keyless Dark OpenStreetMap tiles.',
+          'success'
+        );
+      }
+
+      async function handleConnectPi() {
+        const urlIn = document.getElementById('pi-url-input');
+        const keyIn = document.getElementById('pi-key-input');
+        const cartoIn = document.getElementById('carto-key-input');
+        const btn = document.getElementById('connect-pi-btn');
+
+        // Save optional CARTO key if modified
+        if (cartoIn && cartoIn.value.trim() !== state.cartoKey) {
+          applyCartoMapKey();
+        }
+
+        const baseUrl = urlIn ? urlIn.value.trim().replace(/\/+$/, '') : '';
+        const apiKey = keyIn ? keyIn.value.trim() : '';
+
+        if (!baseUrl || !apiKey) {
+          showConnMsg('Please enter both the Raspberry Pi 5 Base URL and API Key.', 'error');
+          return;
+        }
+
+        if (btn) { btn.disabled = true; btn.textContent = 'Authenticating...'; }
+        hideConnMsg();
+
+        try {
+          await connectNode1(baseUrl, apiKey);
+          try {
+            localStorage.setItem('civiceye_pi_url', baseUrl);
+            localStorage.setItem('civiceye_pi_key', apiKey);
+          } catch (e) {}
+          showConnMsg('Authenticated! Live MJPEG stream & telemetry WebSocket active.', 'success');
+          showToast('Node 01 Hardware Linked', 'Connected to Raspberry Pi 5 at ' + baseUrl, 'emerald');
+          setTimeout(closeConnectorModal, 900);
+        } catch (err) {
+          showConnMsg(err.message || 'Unable to reach Raspberry Pi 5 bridge.', 'error');
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="dot dot-blue pulse"></span> Connect Node 01';
+          }
+        }
+      }
+
+      async function connectNode1(baseUrl, apiKey) {
+        if (state.node1Link.ws) {
+          try { state.node1Link.ws.close(); } catch (e) {}
+          state.node1Link.ws = null;
+        }
+
+        let res;
+        try {
+          res = await fetch(baseUrl + '/session', {
+            method: 'POST',
+            headers: { 'x-api-key': apiKey }
+          });
+        } catch (netErr) {
+          throw new Error('Network error: Raspberry Pi 5 is offline or blocked by CORS/HTTPS.');
+        }
+
+        if (!res.ok) {
+          throw new Error(res.status === 401 ? '401 Unauthorized: Invalid API Key.' : 'Bridge returned HTTP ' + res.status);
+        }
+
+        const data = await res.json();
+        if (!data || !data.token) {
+          throw new Error('Invalid response from /session (missing token).');
+        }
+
+        if (state.webcamActive) stopLocalWebcam(false);
+
+        state.node1Link.connected = true;
+        state.node1Link.url = baseUrl;
+        state.node1Link.apiKey = apiKey;
+        state.node1Link.token = data.token;
+        state.nodes[0].connection = 'RPi 5 • LIVE API';
+
+        syncConnectorUI();
+        applyNode1MediaState();
+        syncFullScreenHUD();
+        renderSidebarFleet();
+        renderLiveFeed();
+        renderNodesGrid();
+
+        const wsProto = baseUrl.indexOf('https://') === 0 ? 'wss://' : 'ws://';
+        const host = baseUrl.replace(/^https?:\/\//, '');
+        const ws = new WebSocket(wsProto + host + '/ws/telemetry?token=' + encodeURIComponent(data.token));
+        state.node1Link.ws = ws;
+
+        ws.onmessage = function (ev) {
+          try {
+            const payload = JSON.parse(ev.data);
+            const n = state.nodes[0];
+            if (typeof payload.lat === 'number' && !isNaN(payload.lat)) n.lat = payload.lat;
+            if (typeof payload.lng === 'number' && !isNaN(payload.lng)) n.lng = payload.lng;
+            if (typeof payload.battery === 'number') n.battery = Math.max(0, Math.min(100, Math.round(payload.battery)));
+            if (typeof payload.npu_temp_c === 'number') n.npuTemp = payload.npu_temp_c;
+            if (typeof payload.fps === 'number') n.fps = payload.fps;
+            if (Array.isArray(payload.detections)) n.detectionsCount = payload.detections.length;
+            syncLiveNodeDOM(n);
+          } catch (e) {}
+        };
+
+        ws.onclose = function () {
+          if (state.node1Link.connected) {
+            disconnectNode1(false);
+          }
+        };
+      }
+
+      function disconnectNode1(clearSaved) {
+        if (state.node1Link.ws) {
+          try { state.node1Link.ws.close(); } catch (e) {}
+          state.node1Link.ws = null;
+        }
+        state.node1Link.connected = false;
+        state.node1Link.token = null;
+        state.nodes[0].connection = '5G • 16ms';
+
+        if (clearSaved) {
+          state.node1Link.url = '';
+          state.node1Link.apiKey = '';
+          try {
+            localStorage.removeItem('civiceye_pi_url');
+            localStorage.removeItem('civiceye_pi_key');
+          } catch (e) {}
+          const urlIn = document.getElementById('pi-url-input');
+          const keyIn = document.getElementById('pi-key-input');
+          if (urlIn) urlIn.value = '';
+          if (keyIn) keyIn.value = '';
+          showConnMsg('Disconnected and cleared saved Pi 5 credentials.', 'success');
+          showToast('Node 01 Disconnected', 'Returned to onboard optical feed.', 'blue');
+        }
+
+        syncConnectorUI();
+        applyNode1MediaState();
+        syncFullScreenHUD();
+        renderSidebarFleet();
+        renderLiveFeed();
+        renderNodesGrid();
+      }
+
+      /* =======================================================================
+         STREAM INSPECTOR MODAL
+         ======================================================================= */
+      function openInspectorModal(nodeId) {
+        const node = state.nodes.find(function (n) { return n.id === nodeId; });
+        if (!node) return;
+        state.inspectorNodeId = nodeId;
+
+        const modal = document.getElementById('inspector-modal');
+        const badge = document.getElementById('insp-badge');
+        const title = document.getElementById('insp-title');
+        const gps = document.getElementById('insp-gps');
+        const fps = document.getElementById('insp-fps');
+        const log = document.getElementById('insp-log');
+        const locateBtn = document.getElementById('insp-locate-btn');
+        const fsBtn = document.getElementById('insp-fullscreen-btn');
+        const mjpeg = document.getElementById('insp-mjpeg');
+        const webcam = document.getElementById('insp-webcam');
+
+        if (badge) badge.textContent = node.id + ' • LIVE';
+        if (title) title.textContent = node.name + ' — ' + node.vehicle;
+        if (gps) gps.textContent = node.lat.toFixed(5) + ', ' + node.lng.toFixed(5);
+        if (fps) fps.textContent = node.fps.toFixed(1) + ' FPS • ' + node.npuTemp.toFixed(1) + '°C';
+        if (locateBtn) locateBtn.onclick = function () { focusNodeOnMap(node.id); };
+
+        if (fsBtn) {
+          if (node.isPrimary) {
+            fsBtn.classList.remove('hidden');
+            fsBtn.onclick = openNode1FullScreen;
+          } else {
+            fsBtn.classList.add('hidden');
+          }
+        }
+
+        if (node.isPrimary && state.node1Link.connected && state.node1Link.token && !state.webcamActive) {
+          if (mjpeg) { mjpeg.src = state.node1Link.url + '/video_feed?token=' + encodeURIComponent(state.node1Link.token); mjpeg.classList.remove('hidden'); }
+          if (webcam) { webcam.srcObject = null; webcam.classList.add('hidden'); }
+        } else if (node.isPrimary && state.webcamActive && state.webcamStream) {
+          if (mjpeg) { mjpeg.removeAttribute('src'); mjpeg.classList.add('hidden'); }
+          if (webcam) { webcam.srcObject = state.webcamStream; webcam.classList.remove('hidden'); }
+        } else {
+          if (mjpeg) { mjpeg.removeAttribute('src'); mjpeg.classList.add('hidden'); }
+          if (webcam) { webcam.srcObject = null; webcam.classList.add('hidden'); }
+        }
+
+        const t = getISTTimeString();
+        if (log) {
+          log.innerHTML = [
+            '[' + t + '] GARBAGE (94.2%) • bbox [118, 210, 86, 54]',
+            '[' + t + '] POTHOLE (89.1%) • bbox [284, 245, 72, 34]',
+            '[' + t + '] ILLEGAL HOARDING (92.4%) • bbox [390, 52, 115, 76]',
+            '[' + t + '] HAILO-8L NPU • YOLOv8n.hef LOCKED',
+            '[' + t + '] GPS 3D FIX • 11 SATELLITES'
+          ].map(function (line, i) {
+            return '<div style="padding:8px 10px;border-radius:8px;background:#000;border:1px solid rgba(255,255,255,0.07);color:' + (i === 0 ? 'var(--neon-blue)' : '#A1A1AA') + ';">' + escapeHtml(line) + '</div>';
+          }).join('');
+        }
+
+        if (modal) modal.classList.add('open');
+      }
+
+      function closeInspectorModal() {
+        const modal = document.getElementById('inspector-modal');
+        const mjpeg = document.getElementById('insp-mjpeg');
+        const webcam = document.getElementById('insp-webcam');
+        if (modal) modal.classList.remove('open');
+        if (mjpeg) { mjpeg.removeAttribute('src'); mjpeg.classList.add('hidden'); }
+        if (webcam) { webcam.srcObject = null; webcam.classList.add('hidden'); }
+        state.inspectorNodeId = null;
+      }
+
+      /* =======================================================================
+         ANIMATED YOLOv8n OPTICAL FEED & STATIC SNAPSHOT CANVAS RENDERERS
+         ======================================================================= */
+      let animT = 0;
+
+      function drawAnimatedFeed(canvas, node, t, hideEmbeddedHud) {
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const tw = Math.floor(rect.width * dpr);
+        const th = Math.floor(rect.height * dpr);
+        if (canvas.width !== tw || canvas.height !== th) {
+          canvas.width = tw;
+          canvas.height = th;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Twilight urban sky
+        const sky = ctx.createLinearGradient(0, 0, 0, h * 0.5);
+        sky.addColorStop(0, '#04070F');
+        sky.addColorStop(1, '#101829');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h * 0.5);
+
+        const horizon = h * 0.5;
+        const seed = parseInt(node.id.replace(/\D/g, ''), 10) || 1;
+
+        // City silhouette
+        ctx.fillStyle = '#080A10';
+        for (let i = 0; i < 11; i++) {
+          const bw = w / 10;
+          const bh = ((Math.sin(i * 1.9 + seed) * 0.5 + 0.5) * 0.16 + 0.08) * h;
+          ctx.fillRect(i * bw - 2, horizon - bh, bw + 2, bh);
+        }
+
+        // Asphalt road
+        ctx.fillStyle = '#0D0F14';
+        ctx.fillRect(0, horizon, w, h - horizon);
+
+        const vpX = w * 0.5 + Math.sin(t * 0.55 + seed) * (w * 0.014);
+        ctx.fillStyle = '#141821';
+        ctx.beginPath();
+        ctx.moveTo(vpX - w * 0.06, horizon);
+        ctx.lineTo(vpX + w * 0.06, horizon);
+        ctx.lineTo(w * 0.94, h);
+        ctx.lineTo(w * 0.06, h);
+        ctx.closePath();
+        ctx.fill();
+
+        // Moving center dashes
+        ctx.strokeStyle = 'rgba(0,210,255,0.34)';
+        for (let i = 0; i < 6; i++) {
+          const p = (t * 1.2 + i / 6) % 1;
+          const y1 = horizon + Math.pow(p, 2.2) * (h - horizon);
+          const y2 = horizon + Math.pow(Math.min(1, p + 0.07), 2.2) * (h - horizon);
+          ctx.lineWidth = (1 + p * 3) * dpr;
+          ctx.beginPath();
+          ctx.moveTo(vpX, y1);
+          ctx.lineTo(vpX, y2);
+          ctx.stroke();
+        }
+
+        // Moving YOLOv8n detections
+        const p1 = (t * 0.30 + seed * 0.17) % 1;
+        const p2 = (t * 0.25 + seed * 0.31 + 0.45) % 1;
+        const p3 = (t * 0.22 + seed * 0.11 + 0.72) % 1;
+        let visibleDetections = 0;
+
+        if (p1 > 0.15 && p1 < 0.92) {
+          visibleDetections++;
+          const sc = 0.3 + Math.pow(p1, 1.7) * 1.0;
+          const x = vpX - w * 0.07 - Math.pow(p1, 1.55) * (w * 0.32);
+          const y = horizon + Math.pow(p1, 1.95) * (h * 0.40);
+          drawBBox(ctx, x, y, 44 * dpr * sc, 28 * dpr * sc, 'GARBAGE 94%', '#FF2A85', dpr);
+        }
+
+        if (p2 > 0.20 && p2 < 0.92) {
+          visibleDetections++;
+          const sc = 0.3 + Math.pow(p2, 1.7) * 1.0;
+          const x = vpX + Math.pow(p2, 1.5) * (w * 0.10);
+          const y = horizon + Math.pow(p2, 1.95) * (h * 0.40);
+          drawBBox(ctx, x, y, 46 * dpr * sc, 18 * dpr * sc, 'POTHOLE 89%', '#00D2FF', dpr);
+        }
+
+        if (p3 > 0.16 && p3 < 0.90) {
+          visibleDetections++;
+          const sc = 0.32 + Math.pow(p3, 1.5) * 0.85;
+          const x = vpX + w * 0.08 + Math.pow(p3, 1.5) * (w * 0.26);
+          const y = horizon - 34 * dpr * sc;
+          drawBBox(ctx, x, y, 56 * dpr * sc, 30 * dpr * sc, 'HOARDING 92%', '#FF2A85', dpr);
+        }
+
+        if (node.isPrimary && !state.node1Link.connected) {
+          node.detectionsCount = visibleDetections;
+        }
+
+        if (!hideEmbeddedHud) {
+          ctx.fillStyle = 'rgba(0,0,0,0.74)';
+          ctx.fillRect(8 * dpr, 8 * dpr, w - 16 * dpr, 22 * dpr);
+          ctx.fillStyle = node.isPrimary ? '#00D2FF' : '#34D399';
+          ctx.beginPath(); ctx.arc(19 * dpr, 19 * dpr, 3.2 * dpr, 0, Math.PI * 2); ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '600 ' + (9 * dpr) + 'px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('LIVE • ' + node.id + ' • HAILO-8L', 28 * dpr, 22 * dpr);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#00D2FF';
+          ctx.fillText(node.fps.toFixed(1) + ' FPS', w - 14 * dpr, 22 * dpr);
+
+          ctx.fillStyle = 'rgba(0,0,0,0.70)';
+          ctx.fillRect(8 * dpr, h - 24 * dpr, w - 16 * dpr, 16 * dpr);
+          ctx.fillStyle = '#A1A1AA';
+          ctx.font = (8.5 * dpr) + 'px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('GPS ' + node.lat.toFixed(4) + ', ' + node.lng.toFixed(4), 14 * dpr, h - 13 * dpr);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#34D399';
+          ctx.fillText('YOLOv8n ACTIVE', w - 14 * dpr, h - 13 * dpr);
+        }
+      }
+
+      function drawBBox(ctx, x, y, w, h, label, color, dpr) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6 * dpr;
+        ctx.strokeRect(x, y, w, h);
+        ctx.font = '700 ' + (8 * dpr) + 'px monospace';
+        const tw = ctx.measureText(label).width + 8 * dpr;
+        const th = 13 * dpr;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, Math.max(2 * dpr, y - th), tw, th);
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, x + 4 * dpr, Math.max(11 * dpr, y - 3.5 * dpr));
+      }
+
+      function renderStaticScene(canvas, scene, labelText, color, dashed) {
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const cw = rect.width || 420;
+        const ch = rect.height || 236;
+        canvas.width = Math.floor(cw * dpr);
+        canvas.height = Math.floor(ch * dpr);
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#070A13');
+        bg.addColorStop(0.48, '#121726');
+        bg.addColorStop(0.50, '#13161D');
+        bg.addColorStop(1, '#090A0E');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.48); ctx.lineTo(w, h * 0.48);
+        ctx.moveTo(w * 0.44, h * 0.48); ctx.lineTo(w * 0.06, h);
+        ctx.moveTo(w * 0.56, h * 0.48); ctx.lineTo(w * 0.94, h);
+        ctx.stroke();
+
+        let bx = w * 0.25, by = h * 0.46, bw = w * 0.38, bh = h * 0.34;
+        if (scene.indexOf('garbage') === 0) {
+          bx = scene.endsWith('-b') ? w * 0.36 : w * 0.22;
+          ctx.fillStyle = '#242733';
+          ctx.fillRect(bx + 10 * dpr, by + bh * 0.3, bw * 0.36, bh * 0.54);
+          ctx.fillStyle = '#323645';
+          ctx.beginPath();
+          ctx.ellipse(bx + bw * 0.65, by + bh * 0.68, bw * 0.22, bh * 0.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (scene.indexOf('pothole') === 0) {
+          bx = scene.endsWith('-b') ? w * 0.30 : w * 0.38;
+          by = h * 0.58; bw = w * 0.34; bh = h * 0.22;
+          ctx.fillStyle = '#040507';
+          ctx.beginPath();
+          ctx.ellipse(bx + bw * 0.5, by + bh * 0.5, bw * 0.40, bh * 0.34, -0.06, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          bx = scene.endsWith('-b') ? w * 0.24 : w * 0.40;
+          by = h * 0.16; bw = w * 0.40; bh = h * 0.34;
+          ctx.strokeStyle = '#52525B';
+          ctx.lineWidth = 2.5 * dpr;
+          ctx.beginPath(); ctx.moveTo(bx + bw * 0.5, by + bh); ctx.lineTo(bx + bw * 0.5, h * 0.88); ctx.stroke();
+          ctx.fillStyle = '#1E1B2B';
+          ctx.fillRect(bx + 5 * dpr, by + 5 * dpr, bw - 10 * dpr, bh - 10 * dpr);
+          ctx.fillStyle = 'rgba(255,42,133,0.28)';
+          ctx.fillRect(bx + 14 * dpr, by + 16 * dpr, bw * 0.52, 8 * dpr);
+        }
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * dpr;
+        if (dashed) ctx.setLineDash([6 * dpr, 4 * dpr]);
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.restore();
+
+        ctx.font = '700 ' + (9.5 * dpr) + 'px monospace';
+        const tw = ctx.measureText(labelText).width + 10 * dpr;
+        const th = 16 * dpr;
+        ctx.fillStyle = color;
+        ctx.fillRect(bx, Math.max(4 * dpr, by - th), tw, th);
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'left';
+        ctx.fillText(labelText, bx + 5 * dpr, Math.max(14 * dpr, by - 4 * dpr));
+      }
+
+      function animationTick() {
+        animT += 0.016;
+        try {
+          if (state.fullscreenOpen && !(state.webcamActive || state.node1Link.connected)) {
+            const fsc = document.getElementById('fs-node1-canvas');
+            if (fsc) drawAnimatedFeed(fsc, state.nodes[0], animT, true);
+          }
+
+          if (state.currentView === 'livefeed') {
+            state.nodes.forEach(function (n) {
+              if (n.isPrimary && (state.webcamActive || state.node1Link.connected)) return;
+              const c = document.getElementById('feed-canvas-' + n.id);
+              if (c) drawAnimatedFeed(c, n, animT, false);
+            });
+          }
+
+          if (state.inspectorNodeId) {
+            const node = state.nodes.find(function (n) { return n.id === state.inspectorNodeId; });
+            if (node && !(node.isPrimary && (state.webcamActive || state.node1Link.connected))) {
+              const ic = document.getElementById('insp-canvas');
+              if (ic) drawAnimatedFeed(ic, node, animT, false);
+            }
+          }
+        } catch (e) {}
+        requestAnimationFrame(animationTick);
+      }
+
+      /* =======================================================================
+         LIVE TELEMETRY DRIFT & DOM SYNC
+         ======================================================================= */
+      function syncLiveNodeDOM(n) {
+        const feedGps = document.getElementById('feed-gps-' + n.id);
+        if (feedGps) feedGps.textContent = n.lat.toFixed(5) + '° N, ' + n.lng.toFixed(5) + '° E';
+
+        const feedFps = document.getElementById('feed-fps-' + n.id);
+        if (feedFps) feedFps.textContent = n.fps.toFixed(1) + ' FPS • ' + n.npuTemp.toFixed(1) + '°C';
+
+        const nodeGps = document.getElementById('node-gps-' + n.id);
+        if (nodeGps) nodeGps.textContent = 'GPS ' + n.lat.toFixed(4) + ', ' + n.lng.toFixed(4);
+
+        const nodeTemp = document.getElementById('node-temp-' + n.id);
+        if (nodeTemp) nodeTemp.textContent = n.npuTemp.toFixed(1) + '°C • ' + n.fps.toFixed(1) + ' FPS';
+
+        const nodeBatt = document.getElementById('node-batt-' + n.id);
+        if (nodeBatt) nodeBatt.innerHTML = n.battery + '% <span style="color:var(--text-muted);font-weight:400;">• ' + escapeHtml(n.voltage) + '</span>';
+
+        const battBar = document.getElementById('node-batt-bar-' + n.id);
+        if (battBar) battBar.style.width = n.battery + '%';
+
+        if (n.isPrimary && state.fullscreenOpen) {
+          syncFullScreenHUD();
+        }
+
+        if (state.inspectorNodeId === n.id) {
+          const igps = document.getElementById('insp-gps');
+          const ifps = document.getElementById('insp-fps');
+          if (igps) igps.textContent = n.lat.toFixed(5) + ', ' + n.lng.toFixed(5);
+          if (ifps) ifps.textContent = n.fps.toFixed(1) + ' FPS • ' + n.npuTemp.toFixed(1) + '°C';
+        }
+
+        if (leafletNodeMarkers[n.id]) {
+          try { leafletNodeMarkers[n.id].setLatLng([n.lat, n.lng]); } catch (e) {}
+        }
+      }
+
+      function tickTelemetry() {
+        try {
+          state.nodes.forEach(function (n, idx) {
+            if (idx === 0 && state.node1Link.connected) return;
+            n.lat += (Math.random() - 0.48) * 0.00014;
+            n.lng += (Math.random() - 0.48) * 0.00014;
+            n.fps = Math.max(24.5, Math.min(30.0, n.fps + (Math.random() - 0.5) * 0.5));
+            n.npuTemp = Math.max(44.5, Math.min(54.0, n.npuTemp + (Math.random() - 0.5) * 0.4));
+            syncLiveNodeDOM(n);
+          });
+          if (state.useFallbackMap && state.currentView === 'dashboard') {
+            drawFallbackMap();
+          }
+        } catch (e) {}
+      }
+
+      /* =======================================================================
+         BOOTSTRAP (ISOLATED TRY/CATCH PER SUBSYSTEM — CLOCK & NAV FIRST)
+         ======================================================================= */
+      document.addEventListener('DOMContentLoaded', function () {
+
+        // 1. Live IST Clock (boots immediately)
+        try {
+          updateClock();
+          setInterval(updateClock, 1000);
+        } catch (e) { console.error('Clock init failed:', e); }
+
+        // 2. Navigation Tabs, Sidebar Toggle & Topbar Controls
+        try {
+          document.querySelectorAll('.nav-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              switchView(btn.getAttribute('data-view'));
+            });
+          });
+
+          const sbToggle = document.getElementById('sidebar-toggle-btn');
+          if (sbToggle) sbToggle.addEventListener('click', toggleSidebar);
+
+          const mobBtn = document.getElementById('mobile-menu-btn');
+          if (mobBtn) mobBtn.addEventListener('click', function () { toggleMobileSidebar(true); });
+
+          const backdrop = document.getElementById('mobile-backdrop');
+          if (backdrop) backdrop.addEventListener('click', function () { toggleMobileSidebar(false); });
+
+          const gotoDisp = document.getElementById('goto-dispatch-link');
+          if (gotoDisp) gotoDisp.addEventListener('click', function () { switchView('dispatch'); });
+
+          document.querySelectorAll('.map-filter-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              setMapFilter(btn.getAttribute('data-filter'));
+            });
+          });
+
+          const pingAllBtn = document.getElementById('ping-all-btn');
+          if (pingAllBtn) {
+            pingAllBtn.addEventListener('click', function () {
+              showToast('Fleet Ping Complete', '5/5 live fleet nodes responded • Avg latency 21 ms.', 'emerald');
+            });
+          }
+        } catch (e) { console.error('Navigation init failed:', e); }
+
+        // 3. Node 01 Full Screen Controls & Keyboard Shortcuts (ESC / F)
+        try {
+          const topFsBtn = document.getElementById('topbar-fullscreen-btn');
+          const lfFsBtn = document.getElementById('livefeed-fs-btn');
+          const fsExitBtn = document.getElementById('fs-exit-btn');
+          const fsToggleHudBtn = document.getElementById('fs-toggle-hud-btn');
+          const fsRestoreHudBtn = document.getElementById('fs-restore-hud-btn');
+          const fsConfigBtn = document.getElementById('fs-config-link-btn');
+
+          if (topFsBtn) topFsBtn.addEventListener('click', openNode1FullScreen);
+          if (lfFsBtn) lfFsBtn.addEventListener('click', openNode1FullScreen);
+          if (fsExitBtn) fsExitBtn.addEventListener('click', closeNode1FullScreen);
+          if (fsToggleHudBtn) fsToggleHudBtn.addEventListener('click', toggleFullScreenHUD);
+          if (fsRestoreHudBtn) fsRestoreHudBtn.addEventListener('click', toggleFullScreenHUD);
+          if (fsConfigBtn) fsConfigBtn.addEventListener('click', openConnectorModal);
+
+          // Sync overlay if user exits native browser fullscreen via native ESC
+          document.addEventListener('fullscreenchange', function () {
+            if (!document.fullscreenElement && state.fullscreenOpen) {
+              const connModal = document.getElementById('connector-modal');
+              // Keep overlay state only if connector modal was deliberately opened from fullscreen
+              if (!connModal || !connModal.classList.contains('open')) {
+                closeNode1FullScreen();
+              }
+            }
+          });
+
+          // Keyboard shortcuts: ESC closes fullscreen/modals, F toggles Node 01 Full Screen
+          document.addEventListener('keydown', function (e) {
+            const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+            const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+            if (e.key === 'Escape') {
+              const connModal = document.getElementById('connector-modal');
+              if (connModal && connModal.classList.contains('open')) {
+                closeConnectorModal();
+                return;
+              }
+              if (state.inspectorNodeId) {
+                closeInspectorModal();
+                return;
+              }
+              if (state.fullscreenOpen) {
+                closeNode1FullScreen();
+              }
+            } else if ((e.key === 'f' || e.key === 'F') && !isTyping && !e.ctrlKey && !e.metaKey && !e.altKey) {
+              e.preventDefault();
+              if (state.fullscreenOpen) {
+                closeNode1FullScreen();
+              } else {
+                openNode1FullScreen();
+              }
+            }
+          });
+        } catch (e) { console.error('Full screen controls init failed:', e); }
+
+        // 4. Connector & Inspector Modals
+        try {
+          const topNodeBtn = document.getElementById('topbar-node1-btn');
+          const lfCfgBtn = document.getElementById('livefeed-config-btn');
+          const closeConnBtn = document.getElementById('close-connector-btn');
+          const connectPiBtn = document.getElementById('connect-pi-btn');
+          const disconnectPiBtn = document.getElementById('disconnect-pi-btn');
+          const applyMapBtn = document.getElementById('apply-map-key-btn');
+          const connModal = document.getElementById('connector-modal');
+
+          if (topNodeBtn) topNodeBtn.addEventListener('click', openConnectorModal);
+          if (lfCfgBtn) lfCfgBtn.addEventListener('click', openConnectorModal);
+          if (closeConnBtn) closeConnBtn.addEventListener('click', closeConnectorModal);
+          if (connectPiBtn) connectPiBtn.addEventListener('click', handleConnectPi);
+          if (disconnectPiBtn) disconnectPiBtn.addEventListener('click', function () { disconnectNode1(true); });
+          if (applyMapBtn) applyMapBtn.addEventListener('click', applyCartoMapKey);
+          if (connModal) {
+            connModal.addEventListener('click', function (e) {
+              if (e.target === connModal) closeConnectorModal();
+            });
+          }
+
+          const closeInspBtn = document.getElementById('close-inspector-btn');
+          const doneInspBtn = document.getElementById('insp-done-btn');
+          const inspModal = document.getElementById('inspector-modal');
+          if (closeInspBtn) closeInspBtn.addEventListener('click', closeInspectorModal);
+          if (doneInspBtn) doneInspBtn.addEventListener('click', closeInspectorModal);
+          if (inspModal) {
+            inspModal.addEventListener('click', function (e) {
+              if (e.target === inspModal) closeInspectorModal();
+            });
+          }
+        } catch (e) { console.error('Modal init failed:', e); }
+
+        // 5. Load Saved Credentials & Optional CARTO Map Key
+        try {
+          state.node1Link.url = localStorage.getItem('civiceye_pi_url') || '';
+          state.node1Link.apiKey = localStorage.getItem('civiceye_pi_key') || '';
+          state.cartoKey = localStorage.getItem('civiceye_carto_key') || '';
+        } catch (e) {}
+
+        // 6. Render All Views Safely
+        try { renderSidebarFleet(); } catch (e) { console.error('Sidebar fleet render failed:', e); }
+        try { renderLiveFeed(); } catch (e) { console.error('Live feed render failed:', e); }
+        try { renderCivicMatch(); } catch (e) { console.error('CivicMATCH render failed:', e); }
+        try { renderIncidentDispatch(); } catch (e) { console.error('Incident Dispatch render failed:', e); }
+        try { renderNodesGrid(); } catch (e) { console.error('Nodes grid render failed:', e); }
+        try { initMap(); } catch (e) { console.error('Map init failed:', e); renderFallbackMap(); }
+
+        // 7. Auto-reconnect Node 01 silently if saved credentials exist
+        try {
+          if (state.node1Link.url && state.node1Link.apiKey) {
+            connectNode1(state.node1Link.url, state.node1Link.apiKey).catch(function () {});
+          }
+        } catch (e) {}
+
+        // 8. Start Telemetry Ticker & Animation Loop
+        setInterval(tickTelemetry, 2000);
+        requestAnimationFrame(animationTick);
+
+        window.addEventListener('resize', function () {
+          if (state.useFallbackMap && state.currentView === 'dashboard') drawFallbackMap();
+          if (state.currentView === 'civicmatch') drawCivicMatchCanvases();
+          if (state.currentView === 'dispatch') drawDispatchCanvases();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
