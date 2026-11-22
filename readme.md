@@ -11,8 +11,8 @@
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 18 41 PM" src="https://github.com/user-attachments/assets/f5167530-d1a6-4920-b3da-403b40822c24" />
 
 ## The Proof-of-Concept: Detachable Edge AI Pod
-
-While the 4WD rover demonstrates autonomous closed-loop inspection on footpaths, campuses, and narrow lanes, it serves as a **proof of concept for a detachable, vehicle-agnostic Edge AI Pod**. The top compute unit (Pi 5 + Hailo-8L + Camera + GPS) is designed to unclip and mount directly onto existing municipal fleets—such as garbage trucks, city buses, and patrol vehicles—to passively audit entire cities like Bengaluru every morning at a fraction of the cost of ₹50 Lakh+ laser-scanning vans.
+##
+**While the 4WD rover demonstrates autonomous closed-loop inspection on footpaths, campuses, and narrow lanes**, it serves as a **proof of concept for a detachable, vehicle-agnostic Edge AI Pod**. The top compute unit (Pi 5 + Hailo-8L + Camera + GPS) is designed to unclip and mount directly onto existing municipal fleets—such as garbage trucks, city buses, and patrol vehicles—to passively audit entire cities like Bengaluru every morning at a fraction of the cost of ₹50 Lakh+ laser-scanning vans.
 <img width="1200" height="1600" alt="WhatsApp Image 2026-11-22 at 1 30 18 PM" src="https://github.com/user-attachments/assets/e80c5cc2-20fb-47f0-a2c1-59375d207556" />
 <img width="1600" height="1200" alt="WhatsApp Image 2026-11-22 at 1 30 17 PM" src="https://github.com/user-attachments/assets/a6da8d59-b428-4e7e-86b0-b1f3152c3d68" />
 
