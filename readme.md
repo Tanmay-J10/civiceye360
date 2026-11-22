@@ -3,9 +3,13 @@
 **CivicEye 360** is a real-time Edge AI road and streetscape auditing system built for the **Changemakers Challenge**. Powered by a **Raspberry Pi 5**, a **Hailo-8L neural accelerator (13 TOPS)**, and a **Pi Camera Module 3**, it detects urban infrastructure hazards at 30+ FPS, calculates municipal repair remedies and costs (in ₹), geotags every incident via GPS, and streams live video and telemetry to a web command dashboard.
 
 <img width="1600" height="1000" alt="WhatsApp Image 2026-11-22 at 1 17 26 PM" src="https://github.com/user-attachments/assets/f4e5f26b-5504-445d-96a3-593cdb9c4af1" />
+
 ## Defect Output saved in csv
+
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 17 55 PM" src="https://github.com/user-attachments/assets/e9cce651-d7dc-4d46-b644-d147db6bb3e5" />
+
 ## Manhole , Pothole, Illegal Hoardings , Dangling Cable , Fallen Tree Dectection
+
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 18 02 PM" src="https://github.com/user-attachments/assets/b3d3ade5-67b7-4912-830c-bdc8f434e1f1" />
 
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 18 41 PM" src="https://github.com/user-attachments/assets/f5167530-d1a6-4920-b3da-403b40822c24" />
