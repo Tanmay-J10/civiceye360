@@ -28,7 +28,13 @@ A low-cost, automated Edge AI system that inspects roads and footpaths in real t
 
 While the 4WD rover demonstrates autonomous closed-loop inspection on footpaths, campuses, and narrow lanes, it serves as a **proof of concept for a detachable, vehicle-agnostic Edge AI Pod**. 
 
-The top compute unit (Pi 5 + Hailo-8L + Camera + GPS) unclips and mounts directly onto existing municipal fleets—such as garbage trucks, city buses, and patrol vehicles—to passively audit entire cities every morning at a fraction of the cost of laser-scanning vans.
+*Crucially, the 4WD rover is a proof of concept for a detachable, vehicle-agnostic Edge AI Pod.
+
+*While the ground rover demonstrates autonomous inspection on footpaths, campuses, and narrow alleys, the top compute pod (Pi 5, Hailo-8L, camera, and GPS) is engineered to unclip and mount directly onto existing municipal fleets—such as garbage trucks, city buses, or patrol vans—turning daily city vehicles into passive, citywide infrastructure auditors at a fraction of traditional costs.
+
+*Because the pod is completely modular and hardware-accelerated, scaling beyond civil infrastructure requires only swapping the compiled .hef neural model—no hardware redesign needed. 
+
+*Future plans include deploying the same AI Pod in healthcare and medical facilities for contactless biomedical waste and sharps triage or hospital corridor spill detection; in precision agriculture for real-time crop blight and pest mapping; and in industrial facilities for automated electrical cable, fire-hazard, and confined-space HVAC duct inspections.
 
 **Hardware Prototype**
 <p align="center">
