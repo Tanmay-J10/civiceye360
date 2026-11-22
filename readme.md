@@ -3,24 +3,28 @@
 **CivicEye 360** is a real-time Edge AI road and streetscape auditing system built for the **Changemakers Challenge**. Powered by a **Raspberry Pi 5**, a **Hailo-8L neural accelerator (13 TOPS)**, and a **Pi Camera Module 3**, it detects urban infrastructure hazards at 30+ FPS, calculates municipal repair remedies and costs (in ₹), geotags every incident via GPS, and streams live video and telemetry to a web command dashboard.
 
 <img width="1600" height="1000" alt="WhatsApp Image 2026-11-22 at 1 17 26 PM" src="https://github.com/user-attachments/assets/f4e5f26b-5504-445d-96a3-593cdb9c4af1" />
-## Yolo8n Annotated Output
+## Defect Output saved in csv
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 17 55 PM" src="https://github.com/user-attachments/assets/e9cce651-d7dc-4d46-b644-d147db6bb3e5" />
-
+## Manhole , Pothole, Illegal Hoardings , Dangling Cable , Fallen Tree Dectection
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 18 02 PM" src="https://github.com/user-attachments/assets/b3d3ade5-67b7-4912-830c-bdc8f434e1f1" />
 
 <img width="640" height="640" alt="WhatsApp Image 2026-11-22 at 1 18 41 PM" src="https://github.com/user-attachments/assets/f5167530-d1a6-4920-b3da-403b40822c24" />
+
 ## The Proof-of-Concept: Detachable Edge AI Pod
+
 While the 4WD rover demonstrates autonomous closed-loop inspection on footpaths, campuses, and narrow lanes, it serves as a **proof of concept for a detachable, vehicle-agnostic Edge AI Pod**. The top compute unit (Pi 5 + Hailo-8L + Camera + GPS) is designed to unclip and mount directly onto existing municipal fleets—such as garbage trucks, city buses, and patrol vehicles—to passively audit entire cities like Bengaluru every morning at a fraction of the cost of ₹50 Lakh+ laser-scanning vans.
 <img width="1200" height="1600" alt="WhatsApp Image 2026-11-22 at 1 30 18 PM" src="https://github.com/user-attachments/assets/e80c5cc2-20fb-47f0-a2c1-59375d207556" />
 <img width="1600" height="1200" alt="WhatsApp Image 2026-11-22 at 1 30 17 PM" src="https://github.com/user-attachments/assets/a6da8d59-b428-4e7e-86b0-b1f3152c3d68" />
+
+## Web Interface
 
 <img width="2880" height="1623" alt="{1053F2C5-AC51-4251-88E1-3B052BEAC45E}" src="https://github.com/user-attachments/assets/c9ab5339-6c09-492d-80cb-3a34dc72d4fa" />
 <img width="2293" height="1493" alt="{A7456D22-6CBC-47F0-9927-A786E74BAF08}" src="https://github.com/user-attachments/assets/94a053a9-0e84-4a75-9227-6c2fdda043a4" />
 <img width="2880" height="1622" alt="{0E12E035-B319-4E5F-BCC8-A51166E0ED85}" src="https://github.com/user-attachments/assets/06227fc7-c673-40ca-8b7c-9cf1d764c6f6" />
 
-
-
-
+## Final Ai Pod preview 
+<img width="2880" height="1618" alt="image" src="https://github.com/user-attachments/assets/6a48f855-704c-4ab3-b433-2c7e82c1dd61" />
+<img width="2880" height="1632" alt="{7054A6A9-7DF0-41CE-AA22-F5D235C270BB}" src="https://github.com/user-attachments/assets/79ddc155-2a95-433d-9d01-8e6b604612f7" />
 
 ## Key Features
 * **30+ FPS Local Edge Inference**: Runs a custom-trained 7-class **YOLOv8n** model compiled to INT8 (`.hef`) on the Hailo-8L NPU with zero cloud latency.
