@@ -47,6 +47,16 @@
 | **Localization** | NEO-6M GPS Module connected via FTDI USB-to-UART (`/dev/ttyUSB0`) |
 | **Power & Networking** | 11.1V 3000mAh Li-ion + XL4016 Buck Converter (`5.15V` to Pi) + 4G Wi-Fi Hotspot |
 
+## Project Outcome
+
+Urban hubs like Bengaluru lose crores every year—and thousands of lives—to unrecorded road and streetscape hazards such as potholes, open manholes, broken footpaths, illegal garbage dumps, and dangling cables. Traditional manual road surveys are slow and unsafe, while commercial laser-scanning vans cost over ₹50 Lakhs and cannot enter narrow lanes or pedestrian walkways.
+
+CivicEye 360 addresses this gap with a low-cost, real-time Edge AI auditing system built around a Raspberry Pi 5, a Hailo-8L neural accelerator (13 TOPS), and a Pi Camera Module 3. Running a custom-trained 7-class YOLOv8n model compiled to INT8 (.hef), the system detects civic hazards locally at 30+ FPS without cloud latency. Upon spotting a defect, it executes closed-loop control by signaling an Arduino UNO R4 over USB to brake the 4WD rover, captures an evidence snapshot, estimates the required municipal remedy and repair cost (in ₹) from bounding-box geometry, and flashes live diagnostics on an onboard 0.96-inch OLED display. A NEO-6M GPS module geotags every incident—supported by automatic dead-reckoning fallback for indoor venues and underpasses—while a FastAPI server streams authenticated MJPEG video and 1 Hz WebSocket telemetry to a live command dashboard.
+
+Crucially, the 4WD rover is a proof of concept for a detachable, vehicle-agnostic Edge AI Pod. While the ground rover demonstrates autonomous inspection on footpaths, campuses, and narrow alleys, the top compute pod (Pi 5, Hailo-8L, camera, and GPS) is engineered to unclip and mount directly onto existing municipal fleets—such as garbage trucks, city buses, or patrol vans—turning daily city vehicles into passive, citywide infrastructure auditors at a fraction of traditional costs.
+
+Because the pod is completely modular and hardware-accelerated, scaling beyond civil infrastructure requires only swapping the compiled .hef neural model—no hardware redesign needed. Future plans include deploying the same AI Pod in healthcare and medical facilities for contactless biomedical waste and sharps triage or hospital corridor spill detection; in precision agriculture for real-time crop blight and pest mapping; and in industrial facilities for automated electrical cable, fire-hazard, and confined-space HVAC duct inspections.
+
 ## API Endpoints
 * `POST /session` — Validates `x-api-key` header against `CIVICEYE_API_KEY` and returns `{"token": "..."}`.
 * `GET /video_feed?token=<token>` — Streams annotated Hailo-8L frames as MJPEG (`multipart/x-mixed-replace; boundary=frame`).
