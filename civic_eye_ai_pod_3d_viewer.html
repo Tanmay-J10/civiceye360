@@ -1,0 +1,2344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Civic Eye - AI Pod 3D Viewer</title>
+
+  <!-- ES Module Import Map for Three.js 0.170.0 & OrbitControls -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    /* =========================================================================
+       CIVIC EYE - AI POD 3D VIEWER | PITCH-BLACK OLED LINEAR / SHADCN UI
+       ========================================================================= */
+    :root {
+      --bg-oled: #000000;
+      --surface-1: rgba(10, 10, 13, 0.84);
+      --surface-2: rgba(17, 17, 22, 0.90);
+      --surface-3: rgba(26, 26, 34, 0.92);
+      --hairline: rgba(255, 255, 255, 0.09);
+      --hairline-strong: rgba(255, 255, 255, 0.18);
+      --text-primary: #FFFFFF;
+      --text-secondary: #A1A1AA;
+      --text-muted: #71717A;
+      --neon-blue: #00D2FF;
+      --neon-pink: #FF2A85;
+      --emerald: #34D399;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --radius-sm: 8px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-oled);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    button, input {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    /* Fullscreen 3D Viewport */
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000000;
+      z-index: 1;
+    }
+
+    #viewport canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      outline: none;
+    }
+
+    /* Custom Thin OLED Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
+
+    /* =========================================================================
+       FLOATING HUD OVERLAY LAYER
+       ========================================================================= */
+    .hud-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      gap: 12px;
+      transition: opacity 260ms ease;
+    }
+
+    .hud-interactive {
+      pointer-events: auto;
+    }
+
+    /* Pitch Mode: hides HUD panels cleanly */
+    body.pitch-mode .hud-hideable {
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transform: translateY(-6px);
+    }
+
+    body.pitch-mode .bottom-dock.hud-hideable {
+      transform: translateY(14px);
+    }
+
+    .pitch-exit-bar {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    body.pitch-mode .pitch-exit-bar {
+      display: flex;
+    }
+
+    /* OLED Card Base */
+    .hud-card {
+      background: var(--surface-1);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg);
+      transition: opacity 240ms ease, transform 240ms ease, border-color 180ms ease;
+    }
+
+    .hud-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .hud-subcard {
+      background: var(--surface-2);
+      border: 1px solid rgba(255, 255, 255, 0.065);
+      border-radius: var(--radius-md);
+    }
+
+    /* Subtle Vertical Neon Edge Highlights */
+    .edge-blue, .edge-pink, .edge-dual {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .edge-blue::before, .edge-pink::before, .edge-dual::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      bottom: 14px;
+      width: 2px;
+      border-radius: 999px;
+    }
+
+    .edge-blue::before { background: linear-gradient(180deg, var(--neon-blue), rgba(0, 210, 255, 0.2)); }
+    .edge-pink::before { background: linear-gradient(180deg, var(--neon-pink), rgba(255, 42, 133, 0.2)); }
+    .edge-dual::before { background: linear-gradient(180deg, var(--neon-blue), var(--neon-pink)); }
+
+    /* Typography Helpers */
+    .label-xs {
+      font-size: 9.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: var(--text-muted);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Pill Badges */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+    }
+
+    .pill-blue {
+      background: rgba(0, 210, 255, 0.11);
+      border: 1px solid rgba(0, 210, 255, 0.36);
+      color: var(--neon-blue);
+    }
+
+    .pill-pink {
+      background: rgba(255, 42, 133, 0.11);
+      border: 1px solid rgba(255, 42, 133, 0.38);
+      color: var(--neon-pink);
+    }
+
+    .pill-emerald {
+      background: rgba(52, 211, 153, 0.11);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      color: var(--emerald);
+    }
+
+    .pill-muted {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      color: var(--text-secondary);
+    }
+
+    .dot {
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 999px;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .dot-blue { background: var(--neon-blue); }
+    .dot-pink { background: var(--neon-pink); }
+    .dot-emerald { background: var(--emerald); }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.82); }
+    }
+    .pulse { animation: pulseDot 1.8s ease-in-out infinite; }
+
+    /* =========================================================================
+       TOP HEADER BAR
+       ========================================================================= */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: rgba(0, 210, 255, 0.08);
+      border: 1px solid rgba(0, 210, 255, 0.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--neon-blue);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .brand-title .accent {
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .hud-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border-radius: 9px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: #FFFFFF;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .hud-btn.active-blue {
+      background: rgba(0, 210, 255, 0.14);
+      border-color: rgba(0, 210, 255, 0.45);
+      color: var(--neon-blue);
+    }
+
+    .hud-btn.active-pink {
+      background: rgba(255, 42, 133, 0.14);
+      border-color: rgba(255, 42, 133, 0.45);
+      color: var(--neon-pink);
+    }
+
+    /* =========================================================================
+       MIDDLE WORKSPACE: LEFT BOM PANEL & RIGHT INSPECTOR PANEL
+       ========================================================================= */
+    .mid-row {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .side-panel {
+      width: 288px;
+      max-height: calc(100vh - 208px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 13px 15px 11px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-top: 2px;
+    }
+
+    .panel-body {
+      padding: 11px 13px 13px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    /* Hardware Stack BOM Items */
+    .bom-item {
+      width: 100%;
+      text-align: left;
+      padding: 9px 11px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 9px;
+      transition: all 160ms ease;
+    }
+
+    .bom-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .bom-item.selected {
+      background: rgba(0, 210, 255, 0.10);
+      border-color: rgba(0, 210, 255, 0.45);
+    }
+
+    .bom-idx {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 20px;
+      flex-shrink: 0;
+    }
+
+    .bom-item.selected .bom-idx {
+      color: var(--neon-blue);
+    }
+
+    .bom-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .bom-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #FFFFFF;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bom-tag {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Right Inspector Spec Fields */
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .spec-cell {
+      padding: 9px 11px;
+    }
+
+    .spec-val {
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #FFFFFF;
+      line-height: 1.4;
+    }
+
+    .spec-role {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    .hint-bar {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-muted);
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed rgba(255, 255, 255, 0.09);
+      text-align: center;
+    }
+
+    /* =========================================================================
+       BOTTOM CONTROL DOCK (EXPLODE SLIDER, SIMULATIONS, CAMERA PRESETS)
+       ========================================================================= */
+    .bottom-dock {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 16px;
+    }
+
+    .dock-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .explode-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 240px;
+      max-width: 440px;
+    }
+
+    .slider-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    input[type="range"].oled-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"].oled-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--neon-blue);
+      border: 2px solid #000000;
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.65);
+      cursor: pointer;
+      transition: transform 120ms ease;
+    }
+
+    input[type="range"].oled-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    input[type="range"].oled-slider::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--neon-blue);
+      border: 2px solid #000000;
+      cursor: pointer;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dock-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.065);
+      width: 100%;
+    }
+
+    .footer-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .credit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #D4D4D8;
+      font-weight: 600;
+    }
+
+    /* Mobile Panel Toggle Buttons */
+    .mobile-toggles {
+      display: none;
+      gap: 8px;
+    }
+
+    /* Fallback Error Banner (if WebGL fails) */
+    .error-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: #000000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .error-overlay.show {
+      display: flex;
+    }
+
+    /* =========================================================================
+       RESPONSIVE LAYOUT
+       ========================================================================= */
+    @media (max-width: 1024px) {
+      .side-panel {
+        width: 248px;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .hud-layer {
+        padding: 10px;
+      }
+      .topbar {
+        padding: 9px 12px;
+      }
+      .brand-sub {
+        display: none;
+      }
+      .mobile-toggles {
+        display: flex;
+      }
+      .mid-row {
+        position: relative;
+      }
+      .side-panel {
+        position: fixed;
+        top: 72px;
+        bottom: 168px;
+        width: calc(100vw - 20px);
+        max-width: 320px;
+        max-height: none;
+        display: none;
+        z-index: 25;
+      }
+      .side-panel.mobile-visible {
+        display: flex;
+      }
+      #bom-panel { left: 10px; }
+      #inspector-panel { right: 10px; }
+      .bottom-dock {
+        padding: 10px 12px;
+      }
+      .footer-meta .controls-hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fullscreen 3D Canvas Container -->
+  <div id="viewport"></div>
+
+  <!-- WebGL Error Fallback -->
+  <div id="error-overlay" class="error-overlay">
+    <div class="hud-card edge-pink" style="max-width:440px;padding:24px;">
+      <span class="pill pill-pink">WEBGL INITIALIZATION NOTICE</span>
+      <h2 style="margin:12px 0 8px;font-size:18px;">Unable to start 3D CAD Viewport</h2>
+      <p id="error-text" style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin:0;"></p>
+    </div>
+  </div>
+
+  <!-- Pitch Mode Floating Exit Pill -->
+  <div class="pitch-exit-bar">
+    <span class="pill pill-blue" style="background:rgba(0,0,0,0.82);">
+      <span class="dot dot-blue pulse"></span>
+      CIVIC EYE • NODE-01 PITCH MODE
+    </span>
+    <button id="exit-pitch-btn" class="hud-btn active-pink" style="background:rgba(0,0,0,0.86);">
+      Exit Pitch Mode
+    </button>
+  </div>
+
+  <!-- =========================================================================
+       FLOATING HUD INTERFACE
+       ========================================================================= -->
+  <div class="hud-layer">
+
+    <!-- TOP BAR -->
+    <header class="hud-card edge-dual topbar hud-interactive hud-hideable">
+      <div class="brand-group">
+        <div class="brand-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+          </svg>
+        </div>
+        <div style="min-width:0;">
+          <h1 class="brand-title">Civic Eye <span style="color:var(--neon-blue);">-</span> <span class="accent">AI Pod 3D Viewer</span></h1>
+          <div class="brand-sub">NODE-01 CAD Assembly • Scale 1:10mm • IP65 Vehicle-Mounted Edge AI Unit</div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="mobile-toggles">
+          <button id="mob-bom-btn" class="hud-btn">Stack (6)</button>
+          <button id="mob-spec-btn" class="hud-btn">Specs</button>
+        </div>
+        <span class="pill pill-emerald">
+          <span class="dot dot-emerald pulse"></span>
+          26 TOPS • HAILO-8L
+        </span>
+        <button id="autorotate-btn" class="hud-btn active-blue" title="Toggle Auto-Rotate">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M21 3v5h-5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Auto-Rotate
+        </button>
+        <button id="pitch-mode-btn" class="hud-btn" title="Hide HUD for clean presentation">
+          Clean Pitch Mode
+        </button>
+      </div>
+    </header>
+
+    <!-- MIDDLE ROW: HARDWARE STACK BOM (LEFT) + COMPONENT INSPECTOR (RIGHT) -->
+    <div class="mid-row">
+
+      <!-- Left: Hardware Stack BOM -->
+      <aside id="bom-panel" class="hud-card edge-blue side-panel hud-interactive hud-hideable">
+        <div class="panel-head">
+          <div>
+            <div class="label-xs">Hardware Stack BOM</div>
+            <div class="panel-title">6 Modular Sub-Assemblies</div>
+          </div>
+          <span class="pill pill-muted">CAD v1.4</span>
+        </div>
+        <div class="panel-body">
+          <div id="bom-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+          <div class="hint-bar">Click any 3D part or stack layer to inspect</div>
+        </div>
+      </aside>
+
+      <!-- Right: Component Engineering Inspector -->
+      <aside id="inspector-panel" class="hud-card edge-pink side-panel hud-interactive hud-hideable">
+        <div class="panel-head">
+          <div style="min-width:0;">
+            <div class="label-xs">Engineering Inspector</div>
+            <div id="insp-name" class="panel-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Top Weatherproof Shell (IP65)</div>
+          </div>
+          <span id="insp-badge" class="pill pill-blue">LAYER 01</span>
+        </div>
+        <div class="panel-body">
+          <div class="spec-grid">
+            <div class="hud-subcard spec-cell">
+              <div class="label-xs">Dimensions &amp; Material</div>
+              <div id="insp-dim" class="spec-val mono">138 × 108 × 64 mm • Matte ABS/PC</div>
+            </div>
+            <div class="hud-subcard spec-cell">
+              <div class="label-xs">Interface / Mounting</div>
+              <div id="insp-iface" class="spec-val mono" style="color:var(--neon-blue);">Silicone Gasket + 4× M3 Captive Bolts</div>
+            </div>
+            <div class="hud-subcard spec-cell">
+              <div class="label-xs">Power &amp; Thermal Envelope</div>
+              <div id="insp-thermal" class="spec-val mono">IP65 Louvered Intake • -10°C to 65°C</div>
+            </div>
+            <div class="hud-subcard spec-cell">
+              <div class="label-xs">Role in CivicEye Node-01</div>
+              <div id="insp-role" class="spec-role">Protects the edge compute stack from monsoon rain and road dust while channeling cooling airflow and exposing an RF-transparent GPS radome.</div>
+            </div>
+          </div>
+          <button id="focus-part-btn" class="hud-btn active-blue" style="width:100%;margin-top:4px;">
+            Center Camera on Component
+          </button>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- BOTTOM CONTROL DOCK -->
+    <footer class="hud-card bottom-dock hud-interactive hud-hideable">
+      <div class="dock-row">
+
+        <!-- Exploded View Slider & Toggle -->
+        <div class="explode-control">
+          <button id="explode-toggle-btn" class="hud-btn active-pink" style="min-width:112px;">
+            Explode View
+          </button>
+          <div class="slider-wrap">
+            <div class="slider-header">
+              <span class="label-xs">Assembly Separation</span>
+              <span id="explode-pct" class="mono" style="font-size:11px;font-weight:700;color:var(--neon-blue);">0%</span>
+            </div>
+            <input id="explode-slider" class="oled-slider" type="range" min="0" max="100" value="0" aria-label="Exploded view separation" />
+          </div>
+        </div>
+
+        <!-- Engineering Visualization Toggles -->
+        <div class="btn-group">
+          <button id="xray-btn" class="hud-btn" title="Make outer shell translucent glass with wireframe edges">
+            <span class="dot dot-blue"></span>
+            X-Ray Shell
+          </button>
+          <button id="fov-btn" class="hud-btn" title="Project 60-degree Logitech C270 scanning cone">
+            <span class="dot dot-blue"></span>
+            Camera FOV 60°
+          </button>
+          <button id="airflow-btn" class="hud-btn" title="Simulate intake-to-exhaust thermal airflow">
+            <span class="dot dot-pink"></span>
+            Thermal Airflow
+          </button>
+        </div>
+
+        <!-- Camera Presets -->
+        <div class="btn-group">
+          <button class="hud-btn preset-btn active-blue" data-preset="isometric">Isometric</button>
+          <button class="hud-btn preset-btn" data-preset="front">Front Optical</button>
+          <button class="hud-btn preset-btn" data-preset="top">Top GPS</button>
+          <button class="hud-btn preset-btn" data-preset="rear">Rear I/O</button>
+          <button class="hud-btn preset-btn" data-preset="exploded">Exploded Hero</button>
+        </div>
+
+      </div>
+
+      <div class="dock-divider"></div>
+
+      <div class="footer-meta">
+        <div class="credit-badge">
+          <span class="dot dot-blue pulse"></span>
+          <span>Developed by Tanmay Joshi</span>
+          <span style="color:var(--text-muted);font-weight:400;">• Civic Eye Command Ecosystem</span>
+        </div>
+        <div class="controls-hint mono">
+          DRAG: Orbit • SCROLL: Zoom • RIGHT-DRAG: Pan • CLICK PART: Inspect
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- =========================================================================
+       THREE.JS PROCEDURAL CAD ENGINE & INTERACTION LOGIC
+       ========================================================================= -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    /* =========================================================================
+       ENGINEERING SPECIFICATIONS (BOM METADATA FOR ALL 6 LAYERS)
+       ========================================================================= */
+    const COMPONENT_SPECS = [
+      {
+        id: 'shell',
+        layer: 'LAYER 01',
+        name: 'Top Weatherproof Shell (IP65)',
+        shortTag: 'IP65 Housing • Rain Visor • Radome',
+        dimensions: '138 × 108 × 64 mm • Matte Charcoal PC/ABS',
+        iface: 'Silicone O-Ring Gasket • 4× M3 Captive Screws',
+        thermal: 'Side Louvered Intake/Exhaust • UV-Stabilized',
+        role: 'Shields the internal compute stack from Bengaluru monsoon rain and road dust. Features an overhanging front optical rain visor, translucent GPS radome window, and Electric Blue status LED strips.',
+        basePos: new THREE.Vector3(0, 0.35, 0),
+        explodeOffset: new THREE.Vector3(0, 6.2, 0)
+      },
+      {
+        id: 'gps',
+        layer: 'LAYER 02',
+        name: 'u-blox NEO-6M GPS Module',
+        shortTag: 'Ceramic Patch Antenna • 5Hz Fix',
+        dimensions: '36 × 26 × 8 mm • 25mm Ceramic Patch',
+        iface: 'UART (GPIO 14/15) • u.FL RF Coax Connector',
+        thermal: '3.3V Logic • 45 mA Active Tracking (~0.15W)',
+        role: 'Provides continuous lat/lng geospatial tagging for every garbage, pothole, and illegal hoarding detection. Positioned directly beneath the RF-transparent top radome for rapid satellite lock.',
+        basePos: new THREE.Vector3(0, 4.35, -0.5),
+        explodeOffset: new THREE.Vector3(0, 4.3, 0)
+      },
+      {
+        id: 'hailo',
+        layer: 'LAYER 03',
+        name: 'M.2 HAT+ & Hailo-8L NPU',
+        shortTag: '26 TOPS AI Accelerator • PCIe Gen3',
+        dimensions: '65 × 56 mm HAT+ • M.2 2242 Hailo-8L Card',
+        iface: 'PCIe 2.0/3.0 x1 FFC Ribbon • 16mm Brass Standoffs',
+        thermal: '2.5W Typical NPU Load • Brushed Thermal Shield',
+        role: 'Executes real-time YOLOv8n.hef object detection at 30 FPS directly on the rover without cloud latency, freeing the Raspberry Pi 5 CPU for MJPEG streaming and telemetry.',
+        basePos: new THREE.Vector3(-0.3, 2.7, -0.6),
+        explodeOffset: new THREE.Vector3(0, 2.4, 0)
+      },
+      {
+        id: 'rpi5',
+        layer: 'LAYER 04',
+        name: 'Raspberry Pi 5 + Active Cooler',
+        shortTag: '8GB SBC • Blower Fan • Gigabit',
+        dimensions: '85 × 56 mm PCB • 58 × 49 mm M2.5 Pattern',
+        iface: '40-Pin GPIO • Dual USB 3.0 • GbE • PCIe • USB-C',
+        thermal: '5V/5A (25W Peak) • PWM Radial Blower Heatsink',
+        role: 'Central edge controller running the FastAPI bridge, GStreamer video capture, and WebSocket telemetry uplink to the Civic Eye Command Hub.',
+        basePos: new THREE.Vector3(-0.3, 0.85, -0.6),
+        explodeOffset: new THREE.Vector3(0, 0.55, 0)
+      },
+      {
+        id: 'c270',
+        layer: 'LAYER 05',
+        name: 'Logitech C270 Optical Bay',
+        shortTag: '720p MJPG • 60° FOV • Anti-Glare',
+        dimensions: '72.9 × 31.9 × 26 mm • Recessed Optical Bay',
+        iface: 'USB 2.0 MJPG Stream → RPi 5 Host Port',
+        thermal: '5V / 150 mA • Anti-Glare Optical Glass Port',
+        role: 'Primary forward-facing street vision sensor capturing 60-degree curbside and road-surface footage for CivicMATCH waste, pothole, and illegal hoarding detection.',
+        basePos: new THREE.Vector3(0, 2.15, 4.35),
+        explodeOffset: new THREE.Vector3(0, 0.95, 4.7)
+      },
+      {
+        id: 'chassis',
+        layer: 'LAYER 06',
+        name: 'Base Chassis & Roof-Mount Flanges',
+        shortTag: 'Anodized Tray • 4× Roof Mounts • PG9',
+        dimensions: '140 × 110 mm Base • 176 mm Flange Span',
+        iface: '4× M2.5 Brass Standoffs • PG9 Cable Gland',
+        thermal: 'CNC Anodized Aluminum Heat-Spreading Base',
+        role: 'Heavy-duty vibration-damped foundation featuring 4 bolt/magnetic roof-mount flanges for BMTC buses and BBMP compactors, plus a waterproof PG9 rear power conduit.',
+        basePos: new THREE.Vector3(0, 0.0, 0),
+        explodeOffset: new THREE.Vector3(0, -1.75, 0)
+      }
+    ];
+
+    /* =========================================================================
+       CAMERA PRESETS (SMOOTH INTERPOLATION TARGETS)
+       ========================================================================= */
+    const CAMERA_PRESETS = {
+      isometric: { pos: new THREE.Vector3(16.5, 11.2, 17.5), target: new THREE.Vector3(0, 2.4, 0.4), explode: null },
+      front:     { pos: new THREE.Vector3(0.4, 3.0, 17.8),  target: new THREE.Vector3(0, 2.2, 2.0), explode: null },
+      top:       { pos: new THREE.Vector3(0.1, 21.5, 4.5),  target: new THREE.Vector3(0, 2.5, 0.0), explode: null },
+      rear:      { pos: new THREE.Vector3(-11.5, 6.2, -16.2), target: new THREE.Vector3(0, 1.8, -1.0), explode: null },
+      exploded:  { pos: new THREE.Vector3(19.5, 12.2, 21.0), target: new THREE.Vector3(0, 3.8, 1.0), explode: 1.0 }
+    };
+
+    /* =========================================================================
+       APP STATE
+       ========================================================================= */
+    const appState = {
+      selectedId: 'shell',
+      targetExplode: 0,
+      currentExplode: 0,
+      xrayEnabled: false,
+      fovEnabled: false,
+      airflowEnabled: false,
+      autoRotate: true,
+      pitchMode: false,
+      cameraLerp: null
+    };
+
+    /* =========================================================================
+       CANVAS TEXTURE GENERATORS (NO EXTERNAL IMAGE URLS)
+       ========================================================================= */
+    function createTopPlateTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+
+      // Matte anodized dark plate background
+      ctx.fillStyle = '#0D0E13';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      // Subtle technical hairline border
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(24, 24, c.width - 48, c.height - 48);
+
+      // Electric Blue & Hot Pink accent bar
+      const grad = ctx.createLinearGradient(56, 0, 420, 0);
+      grad.addColorStop(0, '#00D2FF');
+      grad.addColorStop(1, '#FF2A85');
+      ctx.fillStyle = grad;
+      ctx.fillRect(56, 72, 340, 8);
+
+      // Main Title
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '800 66px Inter, system-ui, sans-serif';
+      ctx.fillText('CIVICEYE // NODE-01', 56, 175);
+
+      // Subtitle
+      ctx.fillStyle = '#00D2FF';
+      ctx.font = '700 32px monospace';
+      ctx.fillText('IP65 EDGE AI POD', 56, 238);
+
+      // Spec micro-print
+      ctx.fillStyle = '#71717A';
+      ctx.font = '600 22px monospace';
+      ctx.fillText('RPI 5 • HAILO-8L 26 TOPS • u-blox NEO-6M • BENGALURU GRID', 56, 395);
+
+      // Corner CAD fiducial markers
+      ctx.strokeStyle = 'rgba(0,210,255,0.45)';
+      ctx.lineWidth = 3;
+      const corners = [[44, 44], [c.width - 44, 44], [44, c.height - 44], [c.width - 44, c.height - 44]];
+      corners.forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createHailoLabelTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#252932';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      // Brushed metal horizontal lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 2;
+      for (let y = 0; y < c.height; y += 6) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(c.width, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = 'rgba(0,210,255,0.38)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '800 54px Inter, sans-serif';
+      ctx.fillText('HAILO-8L', 38, 112);
+
+      ctx.fillStyle = '#FF2A85';
+      ctx.font = '700 30px monospace';
+      ctx.fillText('26 TOPS • M.2 2242', 38, 168);
+
+      ctx.fillStyle = '#A1A1AA';
+      ctx.font = '600 20px monospace';
+      ctx.fillText('YOLOv8n.hef EDGE NPU', 38, 214);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 4;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    /* =========================================================================
+       THREE.JS SCENE INITIALIZATION
+       ========================================================================= */
+    let renderer, scene, camera, controls;
+    const componentGroups = {};
+    const shellSolidMaterials = [];
+    let shellWireframeGroup = null;
+    let blowerFanMesh = null;
+    let gpsLedMat = null;
+    let fovGroup = null;
+    const fovScanRings = [];
+    let guideLinesGroup = null;
+    let airflowSystem = null;
+    const airflowParticles = [];
+
+    function initScene() {
+      const container = document.getElementById('viewport');
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000, 1);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.18;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+      scene.fog = new THREE.FogExp2(0x000000, 0.014);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.copy(CAMERA_PRESETS.isometric.pos);
+
+      // OrbitControls
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.minDistance = 6.5;
+      controls.maxDistance = 42;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.target.copy(CAMERA_PRESETS.isometric.target);
+      controls.autoRotate = appState.autoRotate;
+      controls.autoRotateSpeed = 0.75;
+
+      // Cancel camera preset animation if user interacts
+      controls.addEventListener('start', () => {
+        appState.cameraLerp = null;
+      });
+
+      // Studio OLED Rim Lighting (Neutral Key + Electric Blue & Hot Pink Rims)
+      const ambient = new THREE.AmbientLight(0xdbe7ff, 0.55);
+      scene.add(ambient);
+
+      const hemi = new THREE.HemisphereLight(0x88b8ff, 0x101018, 0.65);
+      scene.add(hemi);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.55);
+      keyLight.position.set(14, 22, 16);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.camera.near = 2;
+      keyLight.shadow.camera.far = 55;
+      const d = 14;
+      keyLight.shadow.camera.left = -d;
+      keyLight.shadow.camera.right = d;
+      keyLight.shadow.camera.top = d;
+      keyLight.shadow.camera.bottom = -d;
+      keyLight.shadow.bias = -0.0005;
+      scene.add(keyLight);
+
+      // Electric Blue rim light (left/front)
+      const blueRim = new THREE.PointLight(0x00d2ff, 38, 36, 1.6);
+      blueRim.position.set(-12, 8, 10);
+      scene.add(blueRim);
+
+      // Hot Pink rim light (right/rear)
+      const pinkRim = new THREE.PointLight(0xff2a85, 30, 34, 1.6);
+      pinkRim.position.set(13, 7, -11);
+      scene.add(pinkRim);
+
+      // Subtle under-fill so chassis flanges & Pi 5 underside stay legible
+      const underFill = new THREE.PointLight(0x2a4060, 12, 24, 1.8);
+      underFill.position.set(0, -4, 6);
+      scene.add(underFill);
+
+      // Build Ground Grid & Scale Ticks
+      buildGroundGrid();
+
+      // Build All 6 Modular CAD Sub-Assemblies
+      buildBaseChassis();
+      buildRaspberryPi5();
+      buildHailoHat();
+      buildGpsModule();
+      buildLogitechC270();
+      buildTopShell();
+
+      // Build Exploded Alignment Guides, Camera FOV Frustum & Thermal Airflow
+      buildAlignmentGuides();
+      buildCameraFovFrustum();
+      buildThermalAirflow();
+
+      // Default highlight & inspector
+      selectComponent('shell');
+    }
+
+    /* =========================================================================
+       GROUND CAD GRID & SCALE TICKS
+       ========================================================================= */
+    function buildGroundGrid() {
+      const groundGroup = new THREE.Group();
+      groundGroup.position.y = -0.82;
+
+      // Dark reflective CAD floor plane
+      const floorGeo = new THREE.PlaneGeometry(90, 90);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x050507,
+        roughness: 0.35,
+        metalness: 0.72
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      groundGroup.add(floor);
+
+      // Primary subtle grid
+      const gridMain = new THREE.GridHelper(48, 48, 0x1a2634, 0x101218);
+      gridMain.position.y = 0.01;
+      groundGroup.add(gridMain);
+
+      // Accent blueprint scale ring around the pod footprint
+      const ringGeo = new THREE.RingGeometry(9.6, 9.68, 72);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x00d2ff,
+        transparent: true,
+        opacity: 0.24,
+        side: THREE.DoubleSide
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.02;
+      groundGroup.add(ring);
+
+      // Scale ticks every 20mm (2 units) along X & Z axes
+      const tickPts = [];
+      for (let i = -8; i <= 8; i += 2) {
+        tickPts.push(new THREE.Vector3(i, 0.025, 9.4), new THREE.Vector3(i, 0.025, 9.9));
+        tickPts.push(new THREE.Vector3(9.4, 0.025, i), new THREE.Vector3(9.9, 0.025, i));
+      }
+      const tickGeo = new THREE.BufferGeometry().setFromPoints(tickPts);
+      const tickMat = new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.35 });
+      groundGroup.add(new THREE.LineSegments(tickGeo, tickMat));
+
+      scene.add(groundGroup);
+    }
+
+    /* Helper: Tag all meshes inside a sub-assembly group for raycasting & highlighting */
+    function registerAssembly(id, group) {
+      const spec = COMPONENT_SPECS.find(s => s.id === id);
+      group.position.copy(spec.basePos);
+      group.userData.componentId = id;
+      group.traverse(obj => {
+        if (obj.isMesh) {
+          obj.userData.componentId = id;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          // Store original emissive intensity for clean selection highlight
+          if (obj.material && obj.material.emissive) {
+            obj.userData.origEmissive = obj.material.emissive.clone();
+            obj.userData.origEmissiveIntensity = obj.material.emissiveIntensity ?? 1.0;
+          }
+        }
+      });
+      componentGroups[id] = group;
+      scene.add(group);
+    }
+
+    /* =========================================================================
+       LAYER 06: BASE CHASSIS & ROOF-MOUNT FLANGES (140 x 110 mm)
+       ========================================================================= */
+    function buildBaseChassis() {
+      const g = new THREE.Group();
+
+      const darkAlumMat = new THREE.MeshStandardMaterial({
+        color: 0x16181f,
+        roughness: 0.42,
+        metalness: 0.78
+      });
+      const flangeMat = new THREE.MeshStandardMaterial({
+        color: 0x20232d,
+        roughness: 0.36,
+        metalness: 0.84
+      });
+      const brassMat = new THREE.MeshStandardMaterial({
+        color: 0xd4a44a,
+        roughness: 0.28,
+        metalness: 0.90
+      });
+      const rubberMat = new THREE.MeshStandardMaterial({
+        color: 0x0c0c10,
+        roughness: 0.92,
+        metalness: 0.05
+      });
+      const steelMat = new THREE.MeshStandardMaterial({
+        color: 0xb0b8c5,
+        roughness: 0.25,
+        metalness: 0.92
+      });
+
+      // Main anodized aluminum base tray (13.8 x 0.45 x 10.8)
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(13.8, 0.45, 10.8), darkAlumMat);
+      tray.position.y = -0.225;
+      g.add(tray);
+
+      // Raised perimeter gasket lip
+      const lipFront = new THREE.Mesh(new THREE.BoxGeometry(13.8, 0.3, 0.35), darkAlumMat);
+      lipFront.position.set(0, 0.15, 5.22);
+      const lipBack = lipFront.clone();
+      lipBack.position.z = -5.22;
+      const lipLeft = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 10.1), darkAlumMat);
+      lipLeft.position.set(-6.72, 0.15, 0);
+      const lipRight = lipLeft.clone();
+      lipRight.position.x = 6.72;
+      g.add(lipFront, lipBack, lipLeft, lipRight);
+
+      // 4x M2.5 Brass Standoffs matching Pi 5 pattern (58 x 49 mm -> 5.8 x 4.9 units)
+      const piOffsetX = -0.3;
+      const piOffsetZ = -0.6;
+      const standoffCoords = [
+        [piOffsetX - 2.9, piOffsetZ - 2.45],
+        [piOffsetX + 2.9, piOffsetZ - 2.45],
+        [piOffsetX - 2.9, piOffsetZ + 2.45],
+        [piOffsetX + 2.9, piOffsetZ + 2.45]
+      ];
+      standoffCoords.forEach(([sx, sz]) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.82, 6), brassMat);
+        post.position.set(sx, 0.41, sz);
+        g.add(post);
+      });
+
+      // 4x Heavy-Duty Vehicle Roof-Mount Flanges (Bolt + Magnetic Isolator Pads)
+      const flangePositions = [
+        [-7.9, 3.3], [7.9, 3.3],
+        [-7.9, -3.3], [7.9, -3.3]
+      ];
+      flangePositions.forEach(([fx, fz]) => {
+        const flange = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.32, 2.4), flangeMat);
+        flange.position.set(fx, -0.38, fz);
+        g.add(flange);
+
+        // Rubber magnetic isolator pad underneath
+        const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.88, 0.24, 24), rubberMat);
+        pad.position.set(fx, -0.66, fz);
+        g.add(pad);
+
+        // M6 Stainless Hex Mounting Bolt
+        const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.26, 6), steelMat);
+        bolt.position.set(fx, -0.14, fz);
+        g.add(bolt);
+      });
+
+      // Waterproof PG9 Rear Cable Gland + Curved Braided Power Conduit (-Z rear)
+      const glandNut = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.55, 6), flangeMat);
+      glandNut.rotation.x = Math.PI / 2;
+      glandNut.position.set(-3.2, 0.45, -5.6);
+      g.add(glandNut);
+
+      const glandBoot = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.38, 0.65, 16), rubberMat);
+      glandBoot.rotation.x = Math.PI / 2;
+      glandBoot.position.set(-3.2, 0.45, -6.15);
+      g.add(glandBoot);
+
+      const cableCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-3.2, 0.45, -6.3),
+        new THREE.Vector3(-3.2, 0.25, -7.5),
+        new THREE.Vector3(-3.6, -0.45, -8.5),
+        new THREE.Vector3(-4.8, -0.65, -9.2)
+      ]);
+      const cableGeo = new THREE.TubeGeometry(cableCurve, 24, 0.19, 12, false);
+      const cableMat = new THREE.MeshStandardMaterial({
+        color: 0x15171e,
+        roughness: 0.78,
+        metalness: 0.2
+      });
+      g.add(new THREE.Mesh(cableGeo, cableMat));
+
+      registerAssembly('chassis', g);
+    }
+
+    /* =========================================================================
+       LAYER 04: RASPBERRY PI 5 (85 x 56 mm) + ACTIVE COOLER WITH SPINNING FAN
+       ========================================================================= */
+    function buildRaspberryPi5() {
+      const g = new THREE.Group();
+
+      const pcbMat = new THREE.MeshStandardMaterial({
+        color: 0x0b4a2b,
+        roughness: 0.48,
+        metalness: 0.16
+      });
+      const shieldMat = new THREE.MeshStandardMaterial({
+        color: 0xc2cad6,
+        roughness: 0.24,
+        metalness: 0.90
+      });
+      const goldMat = new THREE.MeshStandardMaterial({
+        color: 0xe2b84a,
+        roughness: 0.25,
+        metalness: 0.92
+      });
+      const darkChipMat = new THREE.MeshStandardMaterial({
+        color: 0x111318,
+        roughness: 0.45,
+        metalness: 0.25
+      });
+      const coolerMat = new THREE.MeshStandardMaterial({
+        color: 0x222630,
+        roughness: 0.34,
+        metalness: 0.85
+      });
+      const usbBlueMat = new THREE.MeshStandardMaterial({
+        color: 0x0088ff,
+        roughness: 0.4,
+        metalness: 0.2
+      });
+
+      // 85 x 56 mm PCB (8.5 x 0.16 x 5.6)
+      const pcb = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.16, 5.6), pcbMat);
+      g.add(pcb);
+
+      // 40-Pin Gold GPIO Header (2 x 20 pins along -Z edge)
+      const gpioBase = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.24, 0.52), darkChipMat);
+      gpioBase.position.set(-0.7, 0.2, -2.38);
+      g.add(gpioBase);
+
+      const pinGeo = new THREE.BoxGeometry(0.08, 0.45, 0.08);
+      for (let i = 0; i < 20; i++) {
+        const px = -3.08 + i * 0.254;
+        const p1 = new THREE.Mesh(pinGeo, goldMat);
+        p1.position.set(px, 0.42, -2.5);
+        const p2 = new THREE.Mesh(pinGeo, goldMat);
+        p2.position.set(px, 0.42, -2.26);
+        g.add(p1, p2);
+      }
+
+      // Gigabit Ethernet + Dual USB 3.0 + Dual USB 2.0 Shields (+X right edge)
+      const eth = new THREE.Mesh(new THREE.BoxGeometry(1.75, 1.35, 1.55), shieldMat);
+      eth.position.set(3.55, 0.75, 1.75);
+      g.add(eth);
+
+      const usb3 = new THREE.Mesh(new THREE.BoxGeometry(1.65, 1.48, 1.38), shieldMat);
+      usb3.position.set(3.58, 0.82, -0.05);
+      g.add(usb3);
+
+      const usb3Insert = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 1.05), usbBlueMat);
+      usb3Insert.position.set(4.42, 0.95, -0.05);
+      g.add(usb3Insert);
+
+      const usb2 = new THREE.Mesh(new THREE.BoxGeometry(1.65, 1.48, 1.38), shieldMat);
+      usb2.position.set(3.58, 0.82, -1.75);
+      g.add(usb2);
+
+      // USB-C Power & Dual micro-HDMI along +Z edge
+      const usbc = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.34, 0.72), shieldMat);
+      usbc.position.set(-3.1, 0.25, 2.52);
+      g.add(usbc);
+
+      const hdmi1 = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.30, 0.65), shieldMat);
+      hdmi1.position.set(-1.7, 0.23, 2.52);
+      const hdmi2 = hdmi1.clone();
+      hdmi2.position.x = -0.35;
+      g.add(hdmi1, hdmi2);
+
+      // RP1 I/O Controller Chip
+      const rp1 = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.14, 1.15), darkChipMat);
+      rp1.position.set(1.6, 0.15, 0.65);
+      g.add(rp1);
+
+      // Anodized Aluminum Finned Active Cooler Base
+      const coolerBase = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.35, 3.6), coolerMat);
+      coolerBase.position.set(-0.65, 0.36, 0.25);
+      g.add(coolerBase);
+
+      // Cooling Fins (11 parallel aluminum fins)
+      for (let i = 0; i < 11; i++) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 3.45), coolerMat);
+        fin.position.set(-2.75 + i * 0.42, 0.82, 0.25);
+        g.add(fin);
+      }
+
+      // Radial Blower Shroud & Animated Spinning Fan Hub
+      const shroud = new THREE.Mesh(new THREE.CylinderGeometry(1.22, 1.25, 0.48, 28, 1, true), coolerMat);
+      shroud.position.set(-1.4, 1.02, 0.25);
+      g.add(shroud);
+
+      blowerFanMesh = new THREE.Group();
+      blowerFanMesh.position.set(-1.4, 1.05, 0.25);
+
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.32, 16), darkChipMat);
+      blowerFanMesh.add(hub);
+
+      const bladeMat = new THREE.MeshStandardMaterial({ color: 0x3b4252, roughness: 0.4, metalness: 0.5 });
+      for (let b = 0; b < 9; b++) {
+        const angle = (b / 9) * Math.PI * 2;
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.16, 0.14), bladeMat);
+        blade.position.set(Math.cos(angle) * 0.68, 0, Math.sin(angle) * 0.68);
+        blade.rotation.y = -angle + 0.35;
+        blade.rotation.x = 0.28;
+        blowerFanMesh.add(blade);
+      }
+      g.add(blowerFanMesh);
+
+      // Green Power Status LED
+      const pwrLed = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.1, 0.12),
+        new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x34d399, emissiveIntensity: 2.2 })
+      );
+      pwrLed.position.set(-3.95, 0.14, 1.8);
+      g.add(pwrLed);
+
+      registerAssembly('rpi5', g);
+    }
+
+    /* =========================================================================
+       LAYER 03: M.2 HAT+ & HAILO-8L NPU (26 TOPS) + PCIe FFC RIBBON
+       ========================================================================= */
+    function buildHailoHat() {
+      const g = new THREE.Group();
+
+      const hatPcbMat = new THREE.MeshStandardMaterial({
+        color: 0x111217,
+        roughness: 0.5,
+        metalness: 0.2
+      });
+      const brassMat = new THREE.MeshStandardMaterial({
+        color: 0xd4a44a,
+        roughness: 0.28,
+        metalness: 0.90
+      });
+      const shieldTex = createHailoLabelTexture();
+      const hailoTopMat = new THREE.MeshStandardMaterial({
+        map: shieldTex,
+        roughness: 0.32,
+        metalness: 0.72
+      });
+      const hailoSideMat = new THREE.MeshStandardMaterial({
+        color: 0x2b303c,
+        roughness: 0.35,
+        metalness: 0.85
+      });
+      const pinkBarMat = new THREE.MeshStandardMaterial({
+        color: 0xff2a85,
+        emissive: 0xff2a85,
+        emissiveIntensity: 2.4,
+        roughness: 0.2
+      });
+
+      // Matte Black M.2 HAT+ PCB (65 x 56 mm -> 6.5 x 0.16 x 5.6)
+      const hatPcb = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.16, 5.6), hatPcbMat);
+      hatPcb.position.x = -0.35;
+      g.add(hatPcb);
+
+      // 4x 16mm Brass Standoffs extending down to Pi 5
+      const stCoords = [[-2.9, -2.45], [2.9, -2.45], [-2.9, 2.45], [2.9, 2.45]];
+      stCoords.forEach(([sx, sz]) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 1.65, 6), brassMat);
+        post.position.set(sx, -0.90, sz);
+        g.add(post);
+      });
+
+      // M.2 Key-M Connector Socket
+      const socket = new THREE.Mesh(
+        new THREE.BoxGeometry(0.55, 0.38, 2.3),
+        new THREE.MeshStandardMaterial({ color: 0x1e2028, roughness: 0.5, metalness: 0.3 })
+      );
+      socket.position.set(-2.35, 0.26, 0.25);
+      g.add(socket);
+
+      // M.2 2242 Hailo-8L AI Accelerator Card (42 x 22 mm -> 4.2 x 0.28 x 2.2)
+      const hailoMats = [hailoSideMat, hailoSideMat, hailoTopMat, hailoSideMat, hailoSideMat, hailoSideMat];
+      const hailoCard = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.28, 2.2), hailoMats);
+      hailoCard.position.set(-0.05, 0.32, 0.25);
+      g.add(hailoCard);
+
+      // Hot Pink Thermal / NPU Activity Indicator Bar
+      const thermalBar = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.08, 0.14), pinkBarMat);
+      thermalBar.position.set(-0.05, 0.48, 1.15);
+      g.add(thermalBar);
+
+      // Curved PCIe FFC Ribbon Cable looping down toward the Pi 5 PCIe connector (-X edge)
+      const ffcCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-3.3, 0.12, 0.0),
+        new THREE.Vector3(-4.15, -0.15, 0.0),
+        new THREE.Vector3(-4.25, -0.95, 0.0),
+        new THREE.Vector3(-3.85, -1.65, 0.0)
+      ]);
+      const ffcGeo = new THREE.TubeGeometry(ffcCurve, 20, 0.11, 8, false);
+      // Flatten tube slightly along Z to resemble a flexible ribbon
+      ffcGeo.scale(1, 1, 5.2);
+      const ffcMat = new THREE.MeshStandardMaterial({
+        color: 0xd98a2b,
+        roughness: 0.38,
+        metalness: 0.35
+      });
+      g.add(new THREE.Mesh(ffcGeo, ffcMat));
+
+      registerAssembly('hailo', g);
+    }
+
+    /* =========================================================================
+       LAYER 02: u-blox NEO-6M GPS MODULE (BLUE PCB + CERAMIC PATCH ANTENNA)
+       ========================================================================= */
+    function buildGpsModule() {
+      const g = new THREE.Group();
+
+      const gpsPcbMat = new THREE.MeshStandardMaterial({
+        color: 0x0b3c8a,
+        roughness: 0.42,
+        metalness: 0.2
+      });
+      const ceramicMat = new THREE.MeshStandardMaterial({
+        color: 0xd8cdb8,
+        roughness: 0.55,
+        metalness: 0.05
+      });
+      const silverMat = new THREE.MeshStandardMaterial({
+        color: 0xd4dbe6,
+        roughness: 0.2,
+        metalness: 0.92
+      });
+      const goldMat = new THREE.MeshStandardMaterial({
+        color: 0xe6b94c,
+        roughness: 0.25,
+        metalness: 0.92
+      });
+
+      // Mounting bracket rails
+      const bracketMat = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.5, metalness: 0.7 });
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.12, 3.2), bracketMat);
+      bracket.position.y = -0.14;
+      g.add(bracket);
+
+      // Blue PCB (36 x 26 mm -> 3.6 x 0.16 x 2.6)
+      const pcb = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.16, 2.6), gpsPcbMat);
+      g.add(pcb);
+
+      // Beige Ceramic Patch Antenna (25 x 25 x 4 mm -> 2.5 x 0.4 x 2.5)
+      const patch = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.42, 2.2), ceramicMat);
+      patch.position.set(0.35, 0.29, 0);
+      g.add(patch);
+
+      // Silver Center Feed Pin on Patch Antenna
+      const feedPin = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 16), silverMat);
+      feedPin.position.set(0.35, 0.51, 0);
+      g.add(feedPin);
+
+      // u.FL RF Coax Connector (Gold)
+      const ufl = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.18, 16), goldMat);
+      ufl.position.set(-1.35, 0.16, 0.75);
+      g.add(ufl);
+
+      // Blinking Electric Blue Satellite Lock LED
+      gpsLedMat = new THREE.MeshStandardMaterial({
+        color: 0x00d2ff,
+        emissive: 0x00d2ff,
+        emissiveIntensity: 3.0
+      });
+      const satLed = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.24), gpsLedMat);
+      satLed.position.set(-1.35, 0.15, -0.75);
+      g.add(satLed);
+
+      registerAssembly('gps', g);
+    }
+
+    /* =========================================================================
+       LAYER 05: LOGITECH C270 OPTICAL BAY (72.9 x 31.9 mm)
+       ========================================================================= */
+    function buildLogitechC270() {
+      const g = new THREE.Group();
+
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x14161c,
+        roughness: 0.48,
+        metalness: 0.35
+      });
+      const faceMat = new THREE.MeshStandardMaterial({
+        color: 0x1e222b,
+        roughness: 0.35,
+        metalness: 0.6
+      });
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0x2a3140,
+        roughness: 0.22,
+        metalness: 0.92
+      });
+      const lensGlassMat = new THREE.MeshPhysicalMaterial({
+        color: 0x071828,
+        roughness: 0.05,
+        metalness: 0.15,
+        transmission: 0.55,
+        ior: 1.5,
+        clearcoat: 1.0
+      });
+
+      // Main C270 Optical Housing (7.29 x 3.19 x 2.3)
+      const body = new THREE.Mesh(new THREE.BoxGeometry(7.29, 3.19, 2.2), bodyMat);
+      g.add(body);
+
+      // Recessed Front Bezel Faceplate
+      const bezel = new THREE.Mesh(new THREE.BoxGeometry(6.85, 2.75, 0.22), faceMat);
+      bezel.position.z = 1.12;
+      g.add(bezel);
+
+      // Multi-Ring Optical Lens Barrel (+Z forward)
+      const outerBarrel = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.08, 0.45, 32), ringMat);
+      outerBarrel.rotation.x = Math.PI / 2;
+      outerBarrel.position.set(0, 0, 1.32);
+      g.add(outerBarrel);
+
+      const accentRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.86, 0.05, 12, 36),
+        new THREE.MeshStandardMaterial({ color: 0x00d2ff, emissive: 0x00d2ff, emissiveIntensity: 1.6 })
+      );
+      accentRing.position.set(0, 0, 1.54);
+      g.add(accentRing);
+
+      // Anti-Glare Glass Lens Element
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.76, 0.14, 32), lensGlassMat);
+      glass.rotation.x = Math.PI / 2;
+      glass.position.set(0, 0, 1.48);
+      g.add(glass);
+
+      // Inner Dark Aperture Pupil
+      const pupil = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.32, 0.32, 0.08, 24),
+        new THREE.MeshBasicMaterial({ color: 0x020408 })
+      );
+      pupil.rotation.x = Math.PI / 2;
+      pupil.position.set(0, 0, 1.52);
+      g.add(pupil);
+
+      // Glowing Cyan/Green Recording Indicator LED
+      const recLed = new THREE.Mesh(
+        new THREE.BoxGeometry(0.38, 0.14, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x34d399, emissiveIntensity: 2.8 })
+      );
+      recLed.position.set(2.25, 0.72, 1.24);
+      g.add(recLed);
+
+      // Microphone Grille Slots (left side of bezel)
+      const micMat = new THREE.MeshBasicMaterial({ color: 0x090a0d });
+      for (let i = 0; i < 4; i++) {
+        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.10, 0.08), micMat);
+        slot.position.set(-2.25, 0.45 - i * 0.28, 1.24);
+        g.add(slot);
+      }
+
+      registerAssembly('c270', g);
+    }
+
+    /* =========================================================================
+       LAYER 01: TOP WEATHERPROOF SHELL (IP65) + RAIN VISOR + LOUVERS + RADOME
+       ========================================================================= */
+    function buildTopShell() {
+      const g = new THREE.Group();
+      shellWireframeGroup = new THREE.Group();
+      shellWireframeGroup.visible = false;
+      g.add(shellWireframeGroup);
+
+      const shellMat = new THREE.MeshStandardMaterial({
+        color: 0x16181f,
+        roughness: 0.56,
+        metalness: 0.38,
+        transparent: false,
+        opacity: 1.0
+      });
+      shellSolidMaterials.push(shellMat);
+
+      const visorMat = new THREE.MeshStandardMaterial({
+        color: 0x111319,
+        roughness: 0.48,
+        metalness: 0.45,
+        transparent: false,
+        opacity: 1.0
+      });
+      shellSolidMaterials.push(visorMat);
+
+      const radomeMat = new THREE.MeshPhysicalMaterial({
+        color: 0x1b2738,
+        roughness: 0.18,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.55,
+        clearcoat: 0.8
+      });
+
+      const ledStripMat = new THREE.MeshStandardMaterial({
+        color: 0x00d2ff,
+        emissive: 0x00d2ff,
+        emissiveIntensity: 2.4,
+        roughness: 0.2
+      });
+
+      const wireMat = new THREE.LineBasicMaterial({
+        color: 0x00d2ff,
+        transparent: true,
+        opacity: 0.62
+      });
+
+      function addShellPiece(geo, mat, px, py, pz, rx = 0, ry = 0, rz = 0) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(px, py, pz);
+        mesh.rotation.set(rx, ry, rz);
+        g.add(mesh);
+
+        const edges = new THREE.EdgesGeometry(geo, 22);
+        const line = new THREE.LineSegments(edges, wireMat);
+        line.position.copy(mesh.position);
+        line.rotation.copy(mesh.rotation);
+        shellWireframeGroup.add(line);
+        return mesh;
+      }
+
+      // Shell outer walls enclosing y = 0 to y = 5.0 (13.8 wide x 10.8 deep)
+      const wallThick = 0.35;
+      // Left & Right side walls
+      addShellPiece(new THREE.BoxGeometry(wallThick, 4.6, 10.8), shellMat, -6.72, 2.3, 0);
+      addShellPiece(new THREE.BoxGeometry(wallThick, 4.6, 10.8), shellMat, 6.72, 2.3, 0);
+      // Rear wall
+      addShellPiece(new THREE.BoxGeometry(13.8, 4.6, wallThick), shellMat, 0, 2.3, -5.22);
+
+      // Front wall framed around the Logitech C270 optical cutout (7.5 x 3.35)
+      addShellPiece(new THREE.BoxGeometry(3.15, 4.6, wallThick), shellMat, -5.32, 2.3, 5.22);
+      addShellPiece(new THREE.BoxGeometry(3.15, 4.6, wallThick), shellMat, 5.32, 2.3, 5.22);
+      addShellPiece(new THREE.BoxGeometry(7.5, 1.05, wallThick), shellMat, 0, 4.08, 5.22);
+      addShellPiece(new THREE.BoxGeometry(7.5, 0.38, wallThick), shellMat, 0, 0.19, 5.22);
+
+      // Chamfered Top Crown Roof with recessed GPS Radome window
+      addShellPiece(new THREE.BoxGeometry(13.2, 0.42, 10.2), shellMat, 0, 4.78, 0);
+      // Subtle angled side bevels along roof edges
+      addShellPiece(new THREE.BoxGeometry(0.42, 0.42, 10.4), shellMat, -6.68, 4.68, 0, 0, 0, 0.55);
+      addShellPiece(new THREE.BoxGeometry(0.42, 0.42, 10.4), shellMat, 6.68, 4.68, 0, 0, 0, -0.55);
+
+      // Recessed Translucent GPS Radome Window (top center-rear above NEO-6M)
+      const radome = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 3.4), radomeMat);
+      radome.position.set(0, 4.96, -0.5);
+      g.add(radome);
+
+      const radomeFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(4.85, 0.08, 3.65),
+        new THREE.MeshStandardMaterial({ color: 0x00d2ff, emissive: 0x00d2ff, emissiveIntensity: 0.6 })
+      );
+      radomeFrame.position.set(0, 4.98, -0.5);
+      g.add(radomeFrame);
+
+      // Crisp Canvas-Textured Top Nameplate ("CIVICEYE // NODE-01" & "IP65 EDGE AI POD")
+      const plateTex = createTopPlateTexture();
+      const plateMat = new THREE.MeshStandardMaterial({
+        map: plateTex,
+        roughness: 0.38,
+        metalness: 0.35
+      });
+      shellSolidMaterials.push(plateMat);
+      const topPlate = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 3.6), plateMat);
+      topPlate.rotation.x = -Math.PI / 2;
+      topPlate.position.set(0, 5.01, 3.15);
+      g.add(topPlate);
+
+      // Overhanging Front Optical Rain Visor (+Z)
+      addShellPiece(new THREE.BoxGeometry(9.6, 0.26, 2.25), visorMat, 0, 4.45, 6.25, 0.12, 0, 0);
+      addShellPiece(new THREE.BoxGeometry(0.24, 2.6, 1.9), visorMat, -4.68, 3.25, 6.08, 0, 0, 0);
+      addShellPiece(new THREE.BoxGeometry(0.24, 2.6, 1.9), visorMat, 4.68, 3.25, 6.08, 0, 0, 0);
+
+      // Side Louvered Cooling Vents (6 angled slats on both left & right sides)
+      for (let i = 0; i < 6; i++) {
+        const ly = 1.2 + i * 0.42;
+        addShellPiece(new THREE.BoxGeometry(0.45, 0.14, 4.2), visorMat, -6.88, ly, -0.4, 0, 0, 0.42);
+        addShellPiece(new THREE.BoxGeometry(0.45, 0.14, 4.2), visorMat, 6.88, ly, -0.4, 0, 0, -0.42);
+      }
+
+      // Glowing Electric Blue Side Status LED Strips
+      const ledL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.16, 7.6), ledStripMat);
+      ledL.position.set(-6.93, 4.18, 0.2);
+      const ledR = ledL.clone();
+      ledR.position.x = 6.93;
+      g.add(ledL, ledR);
+
+      registerAssembly('shell', g);
+    }
+
+    /* =========================================================================
+       EXPLODED VIEW VERTICAL CAD ALIGNMENT GUIDE LINES
+       ========================================================================= */
+    function buildAlignmentGuides() {
+      guideLinesGroup = new THREE.Group();
+      const guideMat = new THREE.LineDashedMaterial({
+        color: 0x00d2ff,
+        dashSize: 0.35,
+        gapSize: 0.28,
+        transparent: true,
+        opacity: 0.0
+      });
+
+      const corners = [
+        [-3.2, -3.05], [2.6, -3.05],
+        [-3.2, 1.85], [2.6, 1.85]
+      ];
+      corners.forEach(([x, z]) => {
+        const pts = [new THREE.Vector3(x, -1.6, z), new THREE.Vector3(x, 11.4, z)];
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const line = new THREE.Line(geo, guideMat);
+        line.computeLineDistances();
+        guideLinesGroup.add(line);
+      });
+
+      // Forward optical alignment line for C270
+      const optPts = [new THREE.Vector3(0, 2.15, 4.3), new THREE.Vector3(0, 3.1, 10.6)];
+      const optGeo = new THREE.BufferGeometry().setFromPoints(optPts);
+      const optLine = new THREE.Line(optGeo, guideMat);
+      optLine.computeLineDistances();
+      guideLinesGroup.add(optLine);
+
+      guideLinesGroup.userData.material = guideMat;
+      scene.add(guideLinesGroup);
+    }
+
+    /* =========================================================================
+       CAMERA 60° FOV FRUSTUM (ATTACHED TO LOGITECH C270 OPTICAL BAY)
+       ========================================================================= */
+    function buildCameraFovFrustum() {
+      fovGroup = new THREE.Group();
+      fovGroup.visible = false;
+
+      const length = 12.5;
+      const halfAngleRad = THREE.MathUtils.degToRad(30); // 60-degree total FOV
+      const endRadius = Math.tan(halfAngleRad) * length;
+
+      // Translucent Electric Blue Scanning Cone
+      const coneGeo = new THREE.ConeGeometry(endRadius, length, 36, 1, true);
+      coneGeo.translate(0, -length / 2, 0);
+      coneGeo.rotateX(-Math.PI / 2); // Point apex at origin, base toward +Z
+
+      const coneMat = new THREE.MeshBasicMaterial({
+        color: 0x00d2ff,
+        transparent: true,
+        opacity: 0.11,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      fovGroup.add(new THREE.Mesh(coneGeo, coneMat));
+
+      // Crisp frustum wireframe edges
+      const edgeGeo = new THREE.EdgesGeometry(coneGeo, 24);
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.45 });
+      fovGroup.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+      // 3 Animated Scanning Pulse Rings traveling down the 60-degree cone
+      for (let i = 0; i < 3; i++) {
+        const ringGeo = new THREE.RingGeometry(0.95, 1.0, 48);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0x00d2ff,
+          transparent: true,
+          opacity: 0.65,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.userData.phase = i / 3;
+        ring.userData.length = length;
+        ring.userData.endRadius = endRadius;
+        fovScanRings.push(ring);
+        fovGroup.add(ring);
+      }
+
+      // Mount directly onto the Logitech C270 front lens
+      fovGroup.position.set(0, 0, 1.55);
+      componentGroups['c270'].add(fovGroup);
+    }
+
+    /* =========================================================================
+       THERMAL AIRFLOW PARTICLE SIMULATION (ELECTRIC BLUE INTAKE → HOT PINK EXHAUST)
+       ========================================================================= */
+    function buildThermalAirflow() {
+      const count = 180;
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const side = i % 2 === 0 ? -1 : 1; // Left or right intake louvers
+        airflowParticles.push({
+          t: Math.random(),
+          speed: 0.24 + Math.random() * 0.16,
+          side,
+          yJitter: (Math.random() - 0.5) * 1.4,
+          zJitter: (Math.random() - 0.5) * 2.4
+        });
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const mat = new THREE.PointsMaterial({
+        size: 0.28,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      airflowSystem = new THREE.Points(geo, mat);
+      airflowSystem.visible = false;
+      scene.add(airflowSystem);
+    }
+
+    function updateThermalAirflow(dt) {
+      if (!airflowSystem || !airflowSystem.visible) return;
+      const posAttr = airflowSystem.geometry.attributes.position;
+      const colAttr = airflowSystem.geometry.attributes.color;
+
+      const coolColor = new THREE.Color(0x00d2ff);
+      const warmColor = new THREE.Color(0xff2a85);
+      const tmpCol = new THREE.Color();
+
+      for (let i = 0; i < airflowParticles.length; i++) {
+        const p = airflowParticles[i];
+        p.t = (p.t + dt * p.speed) % 1.0;
+        const u = p.t;
+
+        let x, y, z;
+        if (u < 0.42) {
+          // Cool intake sweeping in through side louvers toward Pi 5 Active Cooler
+          const k = u / 0.42;
+          x = p.side * THREE.MathUtils.lerp(8.6, 0.8, k);
+          y = 2.2 + p.yJitter * (1 - k * 0.4);
+          z = -0.3 + p.zJitter * (1 - k * 0.5);
+        } else if (u < 0.72) {
+          // Swirling upward across Active Cooler fins & Hailo-8L NPU
+          const k = (u - 0.42) / 0.30;
+          const angle = k * Math.PI * 1.6 * p.side;
+          x = Math.cos(angle) * 1.5 * p.side;
+          y = THREE.MathUtils.lerp(1.9, 3.4, k) + Math.sin(k * Math.PI) * 0.3;
+          z = THREE.MathUtils.lerp(-0.3, -2.2, k);
+        } else {
+          // Heated exhaust exiting rear/upper vents
+          const k = (u - 0.72) / 0.28;
+          x = p.side * THREE.MathUtils.lerp(1.5, 4.8, k);
+          y = THREE.MathUtils.lerp(3.4, 4.4, k) + p.yJitter * 0.35;
+          z = THREE.MathUtils.lerp(-2.2, -7.8, k);
+        }
+
+        posAttr.setXYZ(i, x, y, z);
+
+        // Smooth color transition: Electric Blue → Hot Pink
+        tmpCol.copy(coolColor).lerp(warmColor, Math.min(1, Math.max(0, (u - 0.25) / 0.55)));
+        colAttr.setXYZ(i, tmpCol.r, tmpCol.g, tmpCol.b);
+      }
+
+      posAttr.needsUpdate = true;
+      colAttr.needsUpdate = true;
+    }
+
+    /* =========================================================================
+       INTERACTION: SELECTION, RAYCASTING, X-RAY, EXPLODE & CAMERA PRESETS
+       ========================================================================= */
+    function selectComponent(id) {
+      const spec = COMPONENT_SPECS.find(s => s.id === id);
+      if (!spec) return;
+      appState.selectedId = id;
+
+      // Update 3D subtle emissive highlight across all assemblies
+      Object.entries(componentGroups).forEach(([cid, group]) => {
+        const isSelected = cid === id;
+        group.traverse(obj => {
+          if (obj.isMesh && obj.material && obj.material.emissive && obj.userData.origEmissive) {
+            if (isSelected) {
+              // Subtle Electric Blue tint without washing out glowing LEDs
+              if (obj.userData.origEmissiveIntensity < 1.2) {
+                obj.material.emissive.setHex(0x003a52);
+                obj.material.emissiveIntensity = 0.75;
+              }
+            } else {
+              obj.material.emissive.copy(obj.userData.origEmissive);
+              obj.material.emissiveIntensity = obj.userData.origEmissiveIntensity;
+            }
+          }
+        });
+      });
+
+      // Update Left BOM list active state
+      document.querySelectorAll('.bom-item').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.id === id);
+      });
+
+      // Update Right Inspector Card
+      document.getElementById('insp-name').textContent = spec.name;
+      document.getElementById('insp-badge').textContent = spec.layer;
+      document.getElementById('insp-dim').textContent = spec.dimensions;
+      document.getElementById('insp-iface').textContent = spec.iface;
+      document.getElementById('insp-thermal').textContent = spec.thermal;
+      document.getElementById('insp-role').textContent = spec.role;
+    }
+
+    function setExplodeTarget(value01) {
+      appState.targetExplode = THREE.MathUtils.clamp(value01, 0, 1);
+      const pct = Math.round(appState.targetExplode * 100);
+      document.getElementById('explode-slider').value = String(pct);
+      document.getElementById('explode-pct').textContent = pct + '%';
+
+      const btn = document.getElementById('explode-toggle-btn');
+      if (appState.targetExplode > 0.5) {
+        btn.textContent = 'Assemble Pod';
+        btn.classList.remove('active-pink');
+        btn.classList.add('active-blue');
+      } else {
+        btn.textContent = 'Explode View';
+        btn.classList.remove('active-blue');
+        btn.classList.add('active-pink');
+      }
+    }
+
+    function toggleXray() {
+      appState.xrayEnabled = !appState.xrayEnabled;
+      const btn = document.getElementById('xray-btn');
+      btn.classList.toggle('active-blue', appState.xrayEnabled);
+
+      shellSolidMaterials.forEach(mat => {
+        mat.transparent = appState.xrayEnabled;
+        mat.opacity = appState.xrayEnabled ? 0.18 : 1.0;
+        mat.depthWrite = !appState.xrayEnabled;
+        mat.needsUpdate = true;
+      });
+      if (shellWireframeGroup) {
+        shellWireframeGroup.visible = appState.xrayEnabled;
+      }
+    }
+
+    function toggleFov() {
+      appState.fovEnabled = !appState.fovEnabled;
+      document.getElementById('fov-btn').classList.toggle('active-blue', appState.fovEnabled);
+      if (fovGroup) fovGroup.visible = appState.fovEnabled;
+    }
+
+    function toggleAirflow() {
+      appState.airflowEnabled = !appState.airflowEnabled;
+      document.getElementById('airflow-btn').classList.toggle('active-pink', appState.airflowEnabled);
+      if (airflowSystem) airflowSystem.visible = appState.airflowEnabled;
+    }
+
+    function applyCameraPreset(presetName) {
+      const preset = CAMERA_PRESETS[presetName];
+      if (!preset) return;
+
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.classList.toggle('active-blue', b.dataset.preset === presetName);
+      });
+
+      if (preset.explode !== null) {
+        setExplodeTarget(preset.explode);
+      }
+
+      appState.cameraLerp = {
+        pos: preset.pos.clone(),
+        target: preset.target.clone()
+      };
+    }
+
+    function focusSelectedComponent() {
+      const group = componentGroups[appState.selectedId];
+      if (!group) return;
+      const box = new THREE.Box3().setFromObject(group);
+      const center = box.getCenter(new THREE.Vector3());
+      const offset = new THREE.Vector3(10.5, 6.2, 11.5);
+      appState.cameraLerp = {
+        pos: center.clone().add(offset),
+        target: center
+      };
+    }
+
+    /* =========================================================================
+       UI WIRING & RAYCASTING SETUP
+       ========================================================================= */
+    function initUI() {
+      // Populate Left Hardware Stack BOM List
+      const bomList = document.getElementById('bom-list');
+      bomList.innerHTML = COMPONENT_SPECS.map((spec, idx) => `
+        <button class="bom-item" data-id="${spec.id}">
+          <span class="bom-idx">0${idx + 1}</span>
+          <div class="bom-info">
+            <div class="bom-name">${spec.name}</div>
+            <div class="bom-tag">${spec.shortTag}</div>
+          </div>
+          <span class="dot ${idx % 2 === 0 ? 'dot-blue' : 'dot-pink'}"></span>
+        </button>
+      `).join('');
+
+      bomList.querySelectorAll('.bom-item').forEach(btn => {
+        btn.addEventListener('click', () => selectComponent(btn.dataset.id));
+      });
+
+      // Explode Slider & Quick Toggle
+      const slider = document.getElementById('explode-slider');
+      slider.addEventListener('input', e => {
+        setExplodeTarget(Number(e.target.value) / 100);
+      });
+
+      document.getElementById('explode-toggle-btn').addEventListener('click', () => {
+        setExplodeTarget(appState.targetExplode > 0.5 ? 0 : 1);
+      });
+
+      // Visualization Toggles
+      document.getElementById('xray-btn').addEventListener('click', toggleXray);
+      document.getElementById('fov-btn').addEventListener('click', toggleFov);
+      document.getElementById('airflow-btn').addEventListener('click', toggleAirflow);
+
+      // Auto-Rotate Toggle
+      document.getElementById('autorotate-btn').addEventListener('click', e => {
+        appState.autoRotate = !appState.autoRotate;
+        controls.autoRotate = appState.autoRotate;
+        e.currentTarget.classList.toggle('active-blue', appState.autoRotate);
+      });
+
+      // Clean Pitch Mode
+      const setPitchMode = enabled => {
+        appState.pitchMode = enabled;
+        document.body.classList.toggle('pitch-mode', enabled);
+      };
+      document.getElementById('pitch-mode-btn').addEventListener('click', () => setPitchMode(true));
+      document.getElementById('exit-pitch-btn').addEventListener('click', () => setPitchMode(false));
+
+      // Camera Presets
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => applyCameraPreset(btn.dataset.preset));
+      });
+
+      // Focus Selected Part
+      document.getElementById('focus-part-btn').addEventListener('click', focusSelectedComponent);
+
+      // Mobile Panel Toggles
+      const bomPanel = document.getElementById('bom-panel');
+      const inspPanel = document.getElementById('inspector-panel');
+      document.getElementById('mob-bom-btn').addEventListener('click', () => {
+        const show = !bomPanel.classList.contains('mobile-visible');
+        bomPanel.classList.toggle('mobile-visible', show);
+        inspPanel.classList.remove('mobile-visible');
+      });
+      document.getElementById('mob-spec-btn').addEventListener('click', () => {
+        const show = !inspPanel.classList.contains('mobile-visible');
+        inspPanel.classList.toggle('mobile-visible', show);
+        bomPanel.classList.remove('mobile-visible');
+      });
+
+      // 3D Click-to-Inspect Raycasting (distinguishes clicks from orbit drags)
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      let downX = 0, downY = 0;
+
+      renderer.domElement.addEventListener('pointerdown', e => {
+        downX = e.clientX;
+        downY = e.clientY;
+      });
+
+      renderer.domElement.addEventListener('pointerup', e => {
+        const dist = Math.hypot(e.clientX - downX, e.clientY - downY);
+        if (dist > 6) return; // User was orbiting/panning
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(pointer, camera);
+        const targets = Object.values(componentGroups);
+        const hits = raycaster.intersectObjects(targets, true);
+
+        for (const hit of hits) {
+          const cid = hit.object.userData.componentId;
+          if (cid && componentGroups[cid]) {
+            // If X-Ray is enabled and user clicks through the translucent shell, pick internal part first
+            if (appState.xrayEnabled && cid === 'shell' && hits.length > 1) {
+              continue;
+            }
+            selectComponent(cid);
+            break;
+          }
+        }
+      });
+
+      // Responsive Resize Handler
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    /* =========================================================================
+       ANIMATION LOOP
+       ========================================================================= */
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.elapsedTime;
+
+      // 1. Smoothly interpolate Exploded View positions
+      appState.currentExplode = THREE.MathUtils.lerp(appState.currentExplode, appState.targetExplode, 1 - Math.exp(-8 * dt));
+
+      COMPONENT_SPECS.forEach(spec => {
+        const grp = componentGroups[spec.id];
+        if (!grp) return;
+        grp.position.set(
+          spec.basePos.x + spec.explodeOffset.x * appState.currentExplode,
+          spec.basePos.y + spec.explodeOffset.y * appState.currentExplode,
+          spec.basePos.z + spec.explodeOffset.z * appState.currentExplode
+        );
+      });
+
+      // Fade vertical CAD alignment guide lines in when exploded
+      if (guideLinesGroup && guideLinesGroup.userData.material) {
+        const op = Math.max(0, (appState.currentExplode - 0.08) * 0.55);
+        guideLinesGroup.userData.material.opacity = op;
+        guideLinesGroup.visible = op > 0.01;
+      }
+
+      // 2. Spin Raspberry Pi 5 Active Cooler radial blower fan
+      if (blowerFanMesh) {
+        blowerFanMesh.rotation.y -= dt * 11.5;
+      }
+
+      // 3. Blink u-blox NEO-6M Satellite Lock LED (1 Hz pulse)
+      if (gpsLedMat) {
+        gpsLedMat.emissiveIntensity = Math.sin(elapsed * 5.2) > 0.25 ? 3.2 : 0.2;
+      }
+
+      // 4. Animate Camera FOV 60° scanning rings
+      if (fovGroup && fovGroup.visible) {
+        fovScanRings.forEach(ring => {
+          const p = (ring.userData.phase + elapsed * 0.42) % 1.0;
+          const z = p * ring.userData.length;
+          const r = Math.max(0.15, p * ring.userData.endRadius);
+          ring.position.z = z;
+          ring.scale.set(r, r, 1);
+          ring.material.opacity = (1 - p) * 0.72;
+        });
+      }
+
+      // 5. Update Thermal Airflow particle stream
+      updateThermalAirflow(dt);
+
+      // 6. Smooth Camera Preset Lerp
+      if (appState.cameraLerp) {
+        const k = 1 - Math.exp(-6.5 * dt);
+        camera.position.lerp(appState.cameraLerp.pos, k);
+        controls.target.lerp(appState.cameraLerp.target, k);
+        if (
+          camera.position.distanceTo(appState.cameraLerp.pos) < 0.06 &&
+          controls.target.distanceTo(appState.cameraLerp.target) < 0.06
+        ) {
+          appState.cameraLerp = null;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    /* =========================================================================
+       BOOTSTRAP WITH SAFE ERROR HANDLING
+       ========================================================================= */
+    try {
+      initScene();
+      initUI();
+      animate();
+    } catch (err) {
+      console.error('Civic Eye 3D Viewer initialization error:', err);
+      const overlay = document.getElementById('error-overlay');
+      const text = document.getElementById('error-text');
+      if (text) text.textContent = err.message || 'WebGL context could not be created in this browser.';
+      if (overlay) overlay.classList.add('show');
+    }
+  </script>
+</body>
+</html>
